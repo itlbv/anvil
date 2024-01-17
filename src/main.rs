@@ -2,7 +2,7 @@ use hecs::World;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
-use sdl2::rect::Rect;
+use sdl2::rect::{Point, Rect};
 use sdl2::render::BlendMode::Blend;
 use sdl2::render::WindowCanvas;
 use sdl2::Sdl;
@@ -60,7 +60,19 @@ impl Window {
 
         self.sdl_canvas
             .fill_rect(Rect::new(x, y, w as u32, h as u32))
-            .expect("Can't draw rectangle!");
+            .expect("Error drawing rectangle.");
+    }
+
+    pub fn draw_dot(&mut self, x_world: f32, y_world: f32, color: (u8, u8, u8, u8)) {
+        self.sdl_canvas
+            .set_draw_color(Color::RGBA(color.0, color.1, color.2, color.3));
+
+        let x = Window::world_to_screen(x_world, 50);
+        let y = Window::world_to_screen(y_world, 50);
+
+        self.sdl_canvas
+            .draw_point(Point::new(x, y))
+            .expect("Error drawing point.");
     }
 
     fn world_to_screen(world: f32, zoom_factor: usize) -> i32 {
@@ -118,8 +130,15 @@ fn main() -> Result<(), String> {
 
         window.start_frame();
 
-        for (id, (pos, shape)) in world.query_mut::<(&Position, &Shape)>() {
-            window.draw_rect(pos.x, pos.y, shape.width, shape.height, shape.color);
+        for (_, (pos, shape)) in world.query_mut::<(&Position, &Shape)>() {
+            window.draw_rect(
+                pos.x - shape.width / 2.,
+                pos.y - shape.width / 2.,
+                shape.width,
+                shape.height,
+                shape.color,
+            );
+            window.draw_dot(pos.x, pos.y, (255, 255, 255, 255));
         }
 
         window.present_frame();
