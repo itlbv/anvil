@@ -11,3 +11,4 @@ default-features = false
 features = ["ttf"]
 
 [dependencies]
+hecs = "0.10.4"

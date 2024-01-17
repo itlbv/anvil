@@ -1,3 +1,4 @@
+use hecs::World;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -41,11 +42,25 @@ impl Window {
     }
 }
 
+struct Position {
+    pub x: usize,
+    pub y: usize,
+}
+
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
 
     let mut window = Window::new(&sdl_context);
     let mut event_pump = sdl_context.event_pump()?;
+
+    let mut world = World::new();
+
+    let entity_1 = world.spawn((Position { x: 1, y: 1 },));
+    let entity_2 = world.spawn((Position { x: 3, y: 3 },));
+
+    for (id, &ref pos) in world.query_mut::<&Position>() {
+        println!("Position: x: {}, y: {}", pos.x, pos.y)
+    }
 
     'main: loop {
         for event in event_pump.poll_iter() {
