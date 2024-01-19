@@ -1,4 +1,5 @@
-use hecs::World;
+use crate::ActionType::{AddMove, RemoveMove};
+use hecs::{Entity, World};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -6,6 +7,7 @@ use sdl2::rect::{Point, Rect};
 use sdl2::render::BlendMode::Blend;
 use sdl2::render::WindowCanvas;
 use sdl2::Sdl;
+use std::collections::HashMap;
 use std::time::Duration;
 
 struct Window {
@@ -80,7 +82,7 @@ impl Window {
     }
 }
 
-struct Position {
+pub struct Position {
     pub x: f32,
     pub y: f32,
 }
@@ -91,6 +93,24 @@ struct Shape {
     pub color: (u8, u8, u8, u8),
 }
 
+struct MoveTask {
+    done: bool,
+    destination_x: f32,
+    destination_y: f32,
+}
+
+#[derive(PartialEq)]
+enum ActionType {
+    AddMove,
+    RemoveMove,
+}
+
+struct Action {
+    entity: Entity,
+    action: ActionType,
+    map: HashMap<String, String>,
+}
+
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
 
@@ -99,22 +119,27 @@ fn main() -> Result<(), String> {
 
     let mut world = World::new();
 
-    world.spawn((
+    let entity_1 = world.spawn((
         Position { x: 1., y: 1. },
         Shape {
             width: 0.4,
             height: 0.4,
-            color: (100, 100, 100, 255),
+            color: (150, 150, 150, 255),
         },
     ));
-    world.spawn((
-        Position { x: 3., y: 3. },
-        Shape {
-            width: 0.4,
-            height: 0.4,
-            color: (100, 100, 100, 255),
-        },
-    ));
+
+    let mut actions: Vec<Action> = vec![];
+    actions.push(Action {
+        entity: entity_1,
+        action: AddMove,
+        map: [
+            ("x".to_string(), "5".to_string()),
+            ("y".to_string(), "3".to_string()),
+        ]
+        .into(),
+    });
+
+    let mut iterations = 0;
 
     'main: loop {
         for event in event_pump.poll_iter() {
@@ -141,8 +166,59 @@ fn main() -> Result<(), String> {
             window.draw_dot(pos.x, pos.y, (255, 255, 255, 255));
         }
 
+        for (id, (pos, move_task)) in world.query_mut::<(&mut Position, &mut MoveTask)>() {
+            // get distance to destination
+            let mut dist_x = move_task.destination_x - pos.x;
+            let mut dist_y = move_task.destination_y - pos.y;
+
+            // normalise direction
+            let direction_x = dist_x / dist_x.hypot(dist_y);
+            let direction_y = dist_y / dist_x.hypot(dist_y);
+
+            // modify position
+            pos.x += direction_x * 0.07;
+            pos.y += direction_y * 0.07;
+
+            // signal that the movement is done
+            if move_task.destination_x - pos.x < 0.2 && move_task.destination_y - pos.y < 0.2 {
+                actions.push(Action {
+                    entity: id,
+                    action: RemoveMove,
+                    map: HashMap::default(),
+                });
+                println!("RemoveMove added! Iteration {iterations}")
+            }
+        }
+
+        while !actions.is_empty() {
+            let action = actions.pop().unwrap();
+            if action.action == AddMove {
+                let dest_x = action.map["x"].parse::<f32>().unwrap();
+                let dest_y = action.map["y"].parse::<f32>().unwrap();
+                let move_task = MoveTask {
+                    done: false,
+                    destination_x: dest_x,
+                    destination_y: dest_y,
+                };
+                world
+                    .insert_one(action.entity, move_task)
+                    .expect("Error adding Move task");
+                println!("Move task added! Iteration {iterations}")
+            }
+            if action.action == RemoveMove {
+                world
+                    .remove_one::<MoveTask>(action.entity)
+                    .expect("Error removing Move task");
+                println!("Move task removed! Iteration {iterations}")
+            }
+            println!("Actions is empty. Iteration {iterations}")
+        }
+
         window.present_frame();
+
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+
+        iterations += 1;
     }
 
     Ok(())
