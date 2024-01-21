@@ -153,7 +153,12 @@ impl InputController {
         }
     }
 
-    pub fn update(&mut self, properties: &mut Properties, world: &mut World) {
+    pub fn update(
+        &mut self,
+        properties: &mut Properties,
+        entity_events: &mut Vec<EntityEvent>,
+        world: &mut World,
+    ) {
         for event in self.sdl_events.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -167,7 +172,12 @@ impl InputController {
                     y,
                     ..
                 } => left_mouse_click(x, y, properties, world),
-
+                Event::MouseButtonUp {
+                    mouse_btn: MouseButton::Right,
+                    x,
+                    y,
+                    ..
+                } => right_mouse_click(x, y, properties, entity_events, world),
                 _ => {}
             }
         }
@@ -182,6 +192,34 @@ fn left_mouse_click(x_screen: i32, y_screen: i32, properties: &mut Properties, w
     for (id, pos) in world.query_mut::<&Position>() {
         if (pos.x - x_world).abs() < 0.5 && (pos.y - y_world).abs() < 0.5 {
             properties.selected_entity = Option::from(id);
+        }
+    }
+}
+
+fn right_mouse_click(
+    x_screen: i32,
+    y_screen: i32,
+    properties: &mut Properties,
+    entity_events: &mut Vec<EntityEvent>,
+    world: &mut World,
+) {
+    // if entity is selected add event to it with mouse position
+    match properties.selected_entity {
+        None => {
+            return;
+        }
+        Some(entity) => {
+            let x_world = screen_to_world(x_screen, 50);
+            let y_world = screen_to_world(y_screen, 50);
+            entity_events.push(EntityEvent {
+                entity,
+                event_type: StartMove,
+                param: [
+                    (String::from("x"), x_world.to_string()),
+                    (String::from("y"), y_world.to_string()),
+                ]
+                .into(),
+            })
         }
     }
 }
@@ -265,7 +303,7 @@ fn main() -> Result<(), String> {
         }
 
         // input
-        input_controller.update(&mut properties, &mut world);
+        input_controller.update(&mut properties, &mut entity_events, &mut world);
 
         // entity_events
         while !entity_events.is_empty() {
