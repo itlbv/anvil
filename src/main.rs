@@ -6,7 +6,7 @@ use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::BlendMode::Blend;
 use sdl2::render::WindowCanvas;
-use sdl2::Sdl;
+use sdl2::{EventPump, Sdl};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -82,6 +82,35 @@ impl Window {
     }
 }
 
+struct InputController {
+    sdl_events: EventPump,
+}
+
+impl InputController {
+    fn new(sdl_context: &Sdl) -> Self {
+        Self {
+            sdl_events: sdl_context.event_pump().unwrap(),
+        }
+    }
+
+    pub fn update(&mut self, properties: &mut Properties) {
+        for event in self.sdl_events.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => properties.quit = true,
+                _ => {}
+            }
+        }
+    }
+}
+
+struct Properties {
+    quit: bool,
+}
+
 struct Position {
     pub x: f32,
     pub y: f32,
@@ -115,9 +144,10 @@ fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
 
     let mut window = Window::new(&sdl_context);
-    let mut event_pump = sdl_context.event_pump()?;
+    let mut input_controller = InputController::new(&sdl_context);
 
     let mut world = World::new();
+    let mut properties = Properties { quit: false };
 
     let entity_1 = world.spawn((
         Move {
@@ -147,29 +177,28 @@ fn main() -> Result<(), String> {
     let mut iterations = 0;
 
     'main: loop {
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'main,
-                _ => {}
-            }
+        if properties.quit {
+            break 'main;
         }
 
-        window.start_frame();
+        // input
+        input_controller.update(&mut properties);
 
-        // draw entities
-        for (_, (pos, shape)) in world.query_mut::<(&Position, &Shape)>() {
-            window.draw_rect(
-                pos.x - shape.width / 2.,
-                pos.y - shape.width / 2.,
-                shape.width,
-                shape.height,
-                shape.color,
-            );
-            window.draw_dot(pos.x, pos.y, (255, 255, 255, 255));
+        // entity_events
+        while !entity_events.is_empty() {
+            let entity_event = entity_events.pop().unwrap();
+
+            match entity_event.event_type {
+                StartMove => {
+                    let mut move_task = world
+                        .get::<&mut Move>(entity_event.entity)
+                        .expect("Error getting Move component");
+                    move_task.active = true;
+                    move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
+                    move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
+                }
+                StopMove => {}
+            }
         }
 
         // move
@@ -199,20 +228,18 @@ fn main() -> Result<(), String> {
             }
         }
 
-        while !entity_events.is_empty() {
-            let entity_event = entity_events.pop().unwrap();
+        window.start_frame();
 
-            match entity_event.event_type {
-                StartMove => {
-                    let mut move_task = world
-                        .get::<&mut Move>(entity_event.entity)
-                        .expect("Error getting Move component");
-                    move_task.active = true;
-                    move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
-                    move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
-                }
-                StopMove => {}
-            }
+        // draw entities
+        for (_, (pos, shape)) in world.query_mut::<(&Position, &Shape)>() {
+            window.draw_rect(
+                pos.x - shape.width / 2.,
+                pos.y - shape.width / 2.,
+                shape.width,
+                shape.height,
+                shape.color,
+            );
+            window.draw_dot(pos.x, pos.y, (255, 255, 255, 255));
         }
 
         window.present_frame();
