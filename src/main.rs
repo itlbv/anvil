@@ -70,12 +70,67 @@ impl Window {
         self.sdl_canvas
             .set_draw_color(Color::RGBA(color.0, color.1, color.2, color.3));
 
-        let x = world_to_screen(x_world, 50);
-        let y = world_to_screen(y_world, 50);
+        let x_screen = world_to_screen(x_world, 50);
+        let y_screen = world_to_screen(y_world, 50);
 
         self.sdl_canvas
-            .draw_point(Point::new(x, y))
+            .draw_point(Point::new(x_screen, y_screen))
             .expect("Error drawing point.");
+    }
+
+    pub fn draw_selection_marker(&mut self, x_world: f32, y_world: f32) {
+        self.sdl_canvas.set_draw_color(Color::RGBA(0, 200, 0, 255));
+
+        let p_1_x_world = x_world - 0.3;
+        let p_1_y_world = y_world + 0.1;
+
+        let p_2_x_world = p_1_x_world;
+        let p_2_y_world = p_1_y_world + 0.2;
+
+        let p_3_x_world = p_2_x_world + 0.6;
+        let p_3_y_world = p_2_y_world;
+
+        let p_4_x_world = p_3_x_world;
+        let p_4_y_world = p_3_y_world - 0.2;
+
+        self.sdl_canvas
+            .draw_line(
+                Point::new(
+                    world_to_screen(p_1_x_world, 50),
+                    world_to_screen(p_1_y_world, 50),
+                ),
+                Point::new(
+                    world_to_screen(p_2_x_world, 50),
+                    world_to_screen(p_2_y_world, 50),
+                ),
+            )
+            .expect("Error drawing line");
+
+        self.sdl_canvas
+            .draw_line(
+                Point::new(
+                    world_to_screen(p_2_x_world, 50),
+                    world_to_screen(p_2_y_world, 50),
+                ),
+                Point::new(
+                    world_to_screen(p_3_x_world, 50),
+                    world_to_screen(p_3_y_world, 50),
+                ),
+            )
+            .expect("Error drawing line");
+
+        self.sdl_canvas
+            .draw_line(
+                Point::new(
+                    world_to_screen(p_3_x_world, 50),
+                    world_to_screen(p_3_y_world, 50),
+                ),
+                Point::new(
+                    world_to_screen(p_4_x_world, 50),
+                    world_to_screen(p_4_y_world, 50),
+                ),
+            )
+            .expect("Error drawing line");
     }
 }
 
@@ -192,15 +247,15 @@ fn main() -> Result<(), String> {
     ));
 
     let mut entity_events: Vec<EntityEvent> = vec![];
-    entity_events.push(EntityEvent {
-        entity: entity_1,
-        event_type: StartMove,
-        param: [
-            (String::from("x"), String::from("5")),
-            (String::from("y"), String::from("3")),
-        ]
-        .into(),
-    });
+    // entity_events.push(EntityEvent {
+    //     entity: entity_1,
+    //     event_type: StartMove,
+    //     param: [
+    //         (String::from("x"), String::from("5")),
+    //         (String::from("y"), String::from("3")),
+    //     ]
+    //     .into(),
+    // });
 
     let mut iterations = 0;
 
@@ -259,7 +314,7 @@ fn main() -> Result<(), String> {
         window.start_frame();
 
         // draw entities
-        for (_, (pos, shape)) in world.query_mut::<(&Position, &Shape)>() {
+        for (id, (pos, shape)) in world.query_mut::<(&Position, &Shape)>() {
             window.draw_rect(
                 pos.x - shape.width / 2.,
                 pos.y - shape.width / 2.,
@@ -268,6 +323,16 @@ fn main() -> Result<(), String> {
                 shape.color,
             );
             window.draw_dot(pos.x, pos.y, (255, 255, 255, 255));
+
+            // draw selection marker if entity is selected
+            match properties.selected_entity {
+                None => {}
+                Some(selected_entity) => {
+                    if selected_entity == id {
+                        window.draw_selection_marker(pos.x, pos.y);
+                    }
+                }
+            }
         }
 
         window.present_frame();
