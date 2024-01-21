@@ -1,4 +1,4 @@
-use crate::ActionType::{AddMove, RemoveMove};
+use crate::EntityEventType::{StartMove, StopMove};
 use hecs::{Entity, World};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -82,7 +82,7 @@ impl Window {
     }
 }
 
-pub struct Position {
+struct Position {
     pub x: f32,
     pub y: f32,
 }
@@ -93,22 +93,22 @@ struct Shape {
     pub color: (u8, u8, u8, u8),
 }
 
-struct MoveTask {
-    done: bool,
+struct Move {
+    active: bool,
     destination_x: f32,
     destination_y: f32,
 }
 
 #[derive(PartialEq)]
-enum ActionType {
-    AddMove,
-    RemoveMove,
+enum EntityEventType {
+    StartMove,
+    StopMove,
 }
 
-struct Action {
+struct EntityEvent {
     entity: Entity,
-    action: ActionType,
-    map: HashMap<String, String>,
+    event_type: EntityEventType,
+    param: HashMap<String, String>,
 }
 
 fn main() -> Result<(), String> {
@@ -120,6 +120,11 @@ fn main() -> Result<(), String> {
     let mut world = World::new();
 
     let entity_1 = world.spawn((
+        Move {
+            active: false,
+            destination_x: 0.0,
+            destination_y: 0.0,
+        },
         Position { x: 1., y: 1. },
         Shape {
             width: 0.4,
@@ -128,13 +133,13 @@ fn main() -> Result<(), String> {
         },
     ));
 
-    let mut actions: Vec<Action> = vec![];
-    actions.push(Action {
+    let mut entity_events: Vec<EntityEvent> = vec![];
+    entity_events.push(EntityEvent {
         entity: entity_1,
-        action: AddMove,
-        map: [
-            ("x".to_string(), "5".to_string()),
-            ("y".to_string(), "3".to_string()),
+        event_type: StartMove,
+        param: [
+            (String::from("x"), String::from("5")),
+            (String::from("y"), String::from("3")),
         ]
         .into(),
     });
@@ -155,6 +160,7 @@ fn main() -> Result<(), String> {
 
         window.start_frame();
 
+        // draw entities
         for (_, (pos, shape)) in world.query_mut::<(&Position, &Shape)>() {
             window.draw_rect(
                 pos.x - shape.width / 2.,
@@ -166,7 +172,12 @@ fn main() -> Result<(), String> {
             window.draw_dot(pos.x, pos.y, (255, 255, 255, 255));
         }
 
-        for (id, (pos, move_task)) in world.query_mut::<(&mut Position, &mut MoveTask)>() {
+        // move
+        for (id, (pos, move_task)) in world.query_mut::<(&mut Position, &mut Move)>() {
+            if !move_task.active {
+                continue;
+            }
+
             // get distance to destination
             let mut dist_x = move_task.destination_x - pos.x;
             let mut dist_y = move_task.destination_y - pos.y;
@@ -179,39 +190,29 @@ fn main() -> Result<(), String> {
             pos.x += direction_x * 0.07;
             pos.y += direction_y * 0.07;
 
-            // signal that the movement is done
-            if move_task.destination_x - pos.x < 0.2 && move_task.destination_y - pos.y < 0.2 {
-                actions.push(Action {
-                    entity: id,
-                    action: RemoveMove,
-                    map: HashMap::default(),
-                });
-                println!("RemoveMove added! Iteration {iterations}")
+            // movement is done
+            if move_task.destination_x - pos.x < 0.05 && move_task.destination_y - pos.y < 0.05 {
+                pos.x = move_task.destination_x;
+                pos.y = move_task.destination_y;
+                move_task.active = false;
+                println!("Movement is done")
             }
         }
 
-        while !actions.is_empty() {
-            let action = actions.pop().unwrap();
-            if action.action == AddMove {
-                let dest_x = action.map["x"].parse::<f32>().unwrap();
-                let dest_y = action.map["y"].parse::<f32>().unwrap();
-                let move_task = MoveTask {
-                    done: false,
-                    destination_x: dest_x,
-                    destination_y: dest_y,
-                };
-                world
-                    .insert_one(action.entity, move_task)
-                    .expect("Error adding Move task");
-                println!("Move task added! Iteration {iterations}")
+        while !entity_events.is_empty() {
+            let entity_event = entity_events.pop().unwrap();
+
+            match entity_event.event_type {
+                StartMove => {
+                    let mut move_task = world
+                        .get::<&mut Move>(entity_event.entity)
+                        .expect("Error getting Move component");
+                    move_task.active = true;
+                    move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
+                    move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
+                }
+                StopMove => {}
             }
-            if action.action == RemoveMove {
-                world
-                    .remove_one::<MoveTask>(action.entity)
-                    .expect("Error removing Move task");
-                println!("Move task removed! Iteration {iterations}")
-            }
-            println!("Actions is empty. Iteration {iterations}")
         }
 
         window.present_frame();
