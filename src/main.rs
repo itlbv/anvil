@@ -2,6 +2,7 @@ use crate::EntityEventType::{StartMove, StopMove};
 use hecs::{Entity, World};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::BlendMode::Blend;
@@ -55,10 +56,10 @@ impl Window {
         self.sdl_canvas
             .set_draw_color(Color::RGBA(color.0, color.1, color.2, color.3));
 
-        let x = Window::world_to_screen(x_world, 50);
-        let y = Window::world_to_screen(y_world, 50);
-        let w = Window::world_to_screen(w_world, 50);
-        let h = Window::world_to_screen(h_world, 50);
+        let x = world_to_screen(x_world, 50);
+        let y = world_to_screen(y_world, 50);
+        let w = world_to_screen(w_world, 50);
+        let h = world_to_screen(h_world, 50);
 
         self.sdl_canvas
             .fill_rect(Rect::new(x, y, w as u32, h as u32))
@@ -69,17 +70,21 @@ impl Window {
         self.sdl_canvas
             .set_draw_color(Color::RGBA(color.0, color.1, color.2, color.3));
 
-        let x = Window::world_to_screen(x_world, 50);
-        let y = Window::world_to_screen(y_world, 50);
+        let x = world_to_screen(x_world, 50);
+        let y = world_to_screen(y_world, 50);
 
         self.sdl_canvas
             .draw_point(Point::new(x, y))
             .expect("Error drawing point.");
     }
+}
 
-    fn world_to_screen(world: f32, zoom_factor: usize) -> i32 {
-        (world * zoom_factor as f32) as i32
-    }
+fn world_to_screen(world: f32, zoom_factor: usize) -> i32 {
+    (world * zoom_factor as f32) as i32
+}
+
+fn screen_to_world(screen: i32, zoom_factor: usize) -> f32 {
+    screen as f32 / zoom_factor as f32
 }
 
 struct InputController {
@@ -93,7 +98,7 @@ impl InputController {
         }
     }
 
-    pub fn update(&mut self, properties: &mut Properties) {
+    pub fn update(&mut self, properties: &mut Properties, world: &mut World) {
         for event in self.sdl_events.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -101,14 +106,34 @@ impl InputController {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => properties.quit = true,
+                Event::MouseButtonUp {
+                    mouse_btn: MouseButton::Left,
+                    x,
+                    y,
+                    ..
+                } => left_mouse_click(x, y, properties, world),
+
                 _ => {}
             }
         }
     }
 }
 
+fn left_mouse_click(x_screen: i32, y_screen: i32, properties: &mut Properties, world: &mut World) {
+    let x_world = screen_to_world(x_screen, 50);
+    let y_world = screen_to_world(y_screen, 50);
+
+    // find close entity
+    for (id, pos) in world.query_mut::<&Position>() {
+        if (pos.x - x_world).abs() < 0.5 && (pos.y - y_world).abs() < 0.5 {
+            properties.selected_entity = Option::from(id);
+        }
+    }
+}
+
 struct Properties {
     quit: bool,
+    selected_entity: Option<Entity>,
 }
 
 struct Position {
@@ -147,7 +172,10 @@ fn main() -> Result<(), String> {
     let mut input_controller = InputController::new(&sdl_context);
 
     let mut world = World::new();
-    let mut properties = Properties { quit: false };
+    let mut properties = Properties {
+        quit: false,
+        selected_entity: None,
+    };
 
     let entity_1 = world.spawn((
         Move {
@@ -182,7 +210,7 @@ fn main() -> Result<(), String> {
         }
 
         // input
-        input_controller.update(&mut properties);
+        input_controller.update(&mut properties, &mut world);
 
         // entity_events
         while !entity_events.is_empty() {
