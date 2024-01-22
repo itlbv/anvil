@@ -81,14 +81,14 @@ fn main() -> Result<(), String> {
         }
 
         // move
-        for (id, (pos, movement)) in world.query_mut::<(&mut Position, &mut Movement)>() {
+        for (_, (pos, movement)) in world.query_mut::<(&mut Position, &mut Movement)>() {
             if !movement.active {
                 continue;
             }
 
             // get distance to destination
-            let mut dist_x = movement.destination_x - pos.x;
-            let mut dist_y = movement.destination_y - pos.y;
+            let dist_x = movement.destination_x - pos.x;
+            let dist_y = movement.destination_y - pos.y;
 
             // normalise direction
             let direction_x = dist_x / dist_x.hypot(dist_y);
