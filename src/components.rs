@@ -38,12 +38,12 @@ impl Shape {
     }
 }
 
-pub struct Move {
+pub struct Movement {
     pub active: bool,
     pub destination_x: f32,
     pub destination_y: f32,
 }
-impl Move {
+impl Movement {
     pub fn new() -> Self {
         Self {
             active: false,

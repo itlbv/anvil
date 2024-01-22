@@ -3,10 +3,10 @@ mod input_controller;
 mod util;
 mod window;
 
-use crate::components::{Hunger, Move, Position, Shape};
+use crate::components::{Hunger, Movement, Position, Shape};
 use crate::input_controller::InputController;
 use crate::window::Window;
-use crate::EntityEventType::{StartMove, StopMove};
+use crate::EntityEventType::Move;
 use hecs::{Entity, World};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -18,8 +18,7 @@ struct Properties {
 
 #[derive(PartialEq)]
 enum EntityEventType {
-    StartMove,
-    StopMove,
+    Move,
 }
 
 struct EntityEvent {
@@ -44,7 +43,7 @@ fn main() -> Result<(), String> {
         Position::new(1., 1.),
         Shape::new(0.4, 0.4, (150, 150, 150, 150)),
         Hunger::new(),
-        Move::new(),
+        Movement::new(),
     ));
 
     let mut entity_events: Vec<EntityEvent> = vec![];
@@ -63,15 +62,14 @@ fn main() -> Result<(), String> {
             let entity_event = entity_events.pop().unwrap();
 
             match entity_event.event_type {
-                StartMove => {
+                Move => {
                     let mut move_task = world
-                        .get::<&mut Move>(entity_event.entity)
+                        .get::<&mut Movement>(entity_event.entity)
                         .expect("Error getting Move component");
                     move_task.active = true;
                     move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
                     move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
                 }
-                StopMove => {}
             }
         }
 
@@ -83,14 +81,14 @@ fn main() -> Result<(), String> {
         }
 
         // move
-        for (id, (pos, move_task)) in world.query_mut::<(&mut Position, &mut Move)>() {
-            if !move_task.active {
+        for (id, (pos, movement)) in world.query_mut::<(&mut Position, &mut Movement)>() {
+            if !movement.active {
                 continue;
             }
 
             // get distance to destination
-            let mut dist_x = move_task.destination_x - pos.x;
-            let mut dist_y = move_task.destination_y - pos.y;
+            let mut dist_x = movement.destination_x - pos.x;
+            let mut dist_y = movement.destination_y - pos.y;
 
             // normalise direction
             let direction_x = dist_x / dist_x.hypot(dist_y);
@@ -101,10 +99,10 @@ fn main() -> Result<(), String> {
             pos.y += direction_y * 0.07;
 
             // movement is done
-            if move_task.destination_x - pos.x < 0.05 && move_task.destination_y - pos.y < 0.05 {
-                pos.x = move_task.destination_x;
-                pos.y = move_task.destination_y;
-                move_task.active = false;
+            if movement.destination_x - pos.x < 0.05 && movement.destination_y - pos.y < 0.05 {
+                pos.x = movement.destination_x;
+                pos.y = movement.destination_y;
+                movement.active = false;
             }
         }
 
