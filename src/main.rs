@@ -1,7 +1,9 @@
+mod components;
 mod input_controller;
 mod util;
 mod window;
 
+use crate::components::{Move, Position, Shape};
 use crate::input_controller::InputController;
 use crate::window::Window;
 use crate::EntityEventType::{StartMove, StopMove};
@@ -12,23 +14,6 @@ use std::time::Duration;
 struct Properties {
     quit: bool,
     selected_entity: Option<Entity>,
-}
-
-struct Position {
-    pub x: f32,
-    pub y: f32,
-}
-
-struct Shape {
-    pub width: f32,
-    pub height: f32,
-    pub color: (u8, u8, u8, u8),
-}
-
-struct Move {
-    active: bool,
-    destination_x: f32,
-    destination_y: f32,
 }
 
 #[derive(PartialEq)]
@@ -49,28 +34,19 @@ fn main() -> Result<(), String> {
     let mut window = Window::new(&sdl_context);
     let mut input_controller = InputController::new(&sdl_context);
 
-    let mut world = World::new();
     let mut properties = Properties {
         quit: false,
         selected_entity: None,
     };
 
+    let mut world = World::new();
     world.spawn((
-        Move {
-            active: false,
-            destination_x: 0.0,
-            destination_y: 0.0,
-        },
-        Position { x: 1., y: 1. },
-        Shape {
-            width: 0.4,
-            height: 0.4,
-            color: (150, 150, 150, 255),
-        },
+        Move::new(),
+        Position::new(1., 1.),
+        Shape::new(0.4, 0.4, (150, 150, 150, 150)),
     ));
 
     let mut entity_events: Vec<EntityEvent> = vec![];
-    let mut iterations = 0;
 
     'main: loop {
         if properties.quit {
@@ -151,8 +127,6 @@ fn main() -> Result<(), String> {
         window.present_frame();
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
-
-        iterations += 1;
     }
 
     Ok(())
