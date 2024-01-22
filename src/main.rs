@@ -41,7 +41,7 @@ fn main() -> Result<(), String> {
     };
 
     let mut world = World::new();
-    world.spawn((
+    let entity = world.spawn((
         Position::new(1., 1.),
         Shape::new(0.4, 0.4, (150, 150, 150, 150)),
         Hunger::new(),
@@ -50,6 +50,7 @@ fn main() -> Result<(), String> {
 
     let mut entity_events: Vec<EntityEvent> = vec![];
     let mut behaviors: HashMap<Entity, Behavior> = HashMap::new();
+    behaviors.insert(entity, Behavior::new());
 
     let mut instant = Instant::now();
     'main: loop {
@@ -79,12 +80,13 @@ fn main() -> Result<(), String> {
         // behaviors
         behaviors
             .iter_mut()
-            .for_each(|(entity, behavior)| behavior.run(entity));
+            .for_each(|(entity, behavior)| behavior.run(*entity, &mut world));
 
         // hunger
         for (_, hunger) in world.query_mut::<&mut Hunger>() {
-            if hunger.last_updated - instant > Duration::from_secs(10) {
+            if instant - hunger.last_updated > Duration::from_secs(1) {
                 hunger.value += 1;
+                hunger.last_updated = Instant::now();
             }
         }
 
