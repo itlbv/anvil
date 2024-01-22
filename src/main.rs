@@ -3,13 +3,13 @@ mod input_controller;
 mod util;
 mod window;
 
-use crate::components::{Move, Position, Shape};
+use crate::components::{Hunger, Move, Position, Shape};
 use crate::input_controller::InputController;
 use crate::window::Window;
 use crate::EntityEventType::{StartMove, StopMove};
 use hecs::{Entity, World};
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 struct Properties {
     quit: bool,
@@ -41,13 +41,15 @@ fn main() -> Result<(), String> {
 
     let mut world = World::new();
     world.spawn((
-        Move::new(),
         Position::new(1., 1.),
         Shape::new(0.4, 0.4, (150, 150, 150, 150)),
+        Hunger::new(),
+        Move::new(),
     ));
 
     let mut entity_events: Vec<EntityEvent> = vec![];
 
+    let mut instant = Instant::now();
     'main: loop {
         if properties.quit {
             break 'main;
@@ -70,6 +72,13 @@ fn main() -> Result<(), String> {
                     move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
                 }
                 StopMove => {}
+            }
+        }
+
+        // hunger
+        for (_, hunger) in world.query_mut::<&mut Hunger>() {
+            if hunger.last_updated - instant > Duration::from_secs(10) {
+                hunger.value += 1;
             }
         }
 
@@ -96,7 +105,6 @@ fn main() -> Result<(), String> {
                 pos.x = move_task.destination_x;
                 pos.y = move_task.destination_y;
                 move_task.active = false;
-                println!("Movement is done")
             }
         }
 
@@ -127,6 +135,7 @@ fn main() -> Result<(), String> {
         window.present_frame();
 
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+        instant = Instant::now();
     }
 
     Ok(())

@@ -1,3 +1,18 @@
+use std::time::Instant;
+
+pub struct Hunger {
+    pub value: u8,
+    pub last_updated: Instant,
+}
+impl Hunger {
+    pub fn new() -> Self {
+        Self {
+            value: 0,
+            last_updated: Instant::now(),
+        }
+    }
+}
+
 pub struct Position {
     pub x: f32,
     pub y: f32,
