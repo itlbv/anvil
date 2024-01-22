@@ -1,8 +1,10 @@
+mod behavior;
 mod components;
 mod input_controller;
 mod util;
 mod window;
 
+use crate::behavior::Behavior;
 use crate::components::{Hunger, Movement, Position, Shape};
 use crate::input_controller::InputController;
 use crate::window::Window;
@@ -47,6 +49,7 @@ fn main() -> Result<(), String> {
     ));
 
     let mut entity_events: Vec<EntityEvent> = vec![];
+    let mut behaviors: HashMap<Entity, Behavior> = HashMap::new();
 
     let mut instant = Instant::now();
     'main: loop {
@@ -72,6 +75,11 @@ fn main() -> Result<(), String> {
                 }
             }
         }
+
+        // behaviors
+        behaviors
+            .iter_mut()
+            .for_each(|(entity, behavior)| behavior.run(entity));
 
         // hunger
         for (_, hunger) in world.query_mut::<&mut Hunger>() {
