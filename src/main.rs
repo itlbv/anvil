@@ -1,24 +1,13 @@
 mod input_controller;
+mod util;
 mod window;
 
 use crate::input_controller::InputController;
 use crate::window::Window;
 use crate::EntityEventType::{StartMove, StopMove};
 use hecs::{Entity, World};
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::mouse::MouseButton;
-use sdl2::{EventPump, Sdl};
 use std::collections::HashMap;
 use std::time::Duration;
-
-fn world_to_screen(world: f32, zoom_factor: usize) -> i32 {
-    (world * zoom_factor as f32) as i32
-}
-
-fn screen_to_world(screen: i32, zoom_factor: usize) -> f32 {
-    screen as f32 / zoom_factor as f32
-}
 
 struct Properties {
     quit: bool,

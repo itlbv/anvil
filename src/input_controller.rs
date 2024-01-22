@@ -1,5 +1,5 @@
 use crate::EntityEventType::StartMove;
-use crate::{screen_to_world, EntityEvent, Position, Properties};
+use crate::{util, EntityEvent, Position, Properties};
 use hecs::World;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -49,8 +49,8 @@ impl InputController {
 }
 
 fn left_mouse_click(x_screen: i32, y_screen: i32, properties: &mut Properties, world: &mut World) {
-    let x_world = screen_to_world(x_screen, 50);
-    let y_world = screen_to_world(y_screen, 50);
+    let x_world = util::screen_to_world(x_screen, 50);
+    let y_world = util::screen_to_world(y_screen, 50);
 
     // find close entity
     for (id, pos) in world.query_mut::<&Position>() {
@@ -72,8 +72,8 @@ fn right_mouse_click(
             return;
         }
         Some(entity) => {
-            let x_world = screen_to_world(x_screen, 50);
-            let y_world = screen_to_world(y_screen, 50);
+            let x_world = util::screen_to_world(x_screen, 50);
+            let y_world = util::screen_to_world(y_screen, 50);
             entity_events.push(EntityEvent {
                 entity,
                 event_type: StartMove,

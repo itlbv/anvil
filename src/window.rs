@@ -1,4 +1,4 @@
-use crate::world_to_screen;
+use crate::util;
 use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::BlendMode::Blend;
@@ -50,10 +50,10 @@ impl Window {
         self.sdl_canvas
             .set_draw_color(Color::RGBA(color.0, color.1, color.2, color.3));
 
-        let x = world_to_screen(x_world, 50);
-        let y = world_to_screen(y_world, 50);
-        let w = world_to_screen(w_world, 50);
-        let h = world_to_screen(h_world, 50);
+        let x = util::world_to_screen(x_world, 50);
+        let y = util::world_to_screen(y_world, 50);
+        let w = util::world_to_screen(w_world, 50);
+        let h = util::world_to_screen(h_world, 50);
 
         self.sdl_canvas
             .fill_rect(Rect::new(x, y, w as u32, h as u32))
@@ -64,8 +64,8 @@ impl Window {
         self.sdl_canvas
             .set_draw_color(Color::RGBA(color.0, color.1, color.2, color.3));
 
-        let x_screen = world_to_screen(x_world, 50);
-        let y_screen = world_to_screen(y_world, 50);
+        let x_screen = util::world_to_screen(x_world, 50);
+        let y_screen = util::world_to_screen(y_world, 50);
 
         self.sdl_canvas
             .draw_point(Point::new(x_screen, y_screen))
@@ -90,25 +90,12 @@ impl Window {
         self.sdl_canvas
             .draw_line(
                 Point::new(
-                    world_to_screen(p_1_x_world, 50),
-                    world_to_screen(p_1_y_world, 50),
+                    util::world_to_screen(p_1_x_world, 50),
+                    util::world_to_screen(p_1_y_world, 50),
                 ),
                 Point::new(
-                    world_to_screen(p_2_x_world, 50),
-                    world_to_screen(p_2_y_world, 50),
-                ),
-            )
-            .expect("Error drawing line");
-
-        self.sdl_canvas
-            .draw_line(
-                Point::new(
-                    world_to_screen(p_2_x_world, 50),
-                    world_to_screen(p_2_y_world, 50),
-                ),
-                Point::new(
-                    world_to_screen(p_3_x_world, 50),
-                    world_to_screen(p_3_y_world, 50),
+                    util::world_to_screen(p_2_x_world, 50),
+                    util::world_to_screen(p_2_y_world, 50),
                 ),
             )
             .expect("Error drawing line");
@@ -116,12 +103,25 @@ impl Window {
         self.sdl_canvas
             .draw_line(
                 Point::new(
-                    world_to_screen(p_3_x_world, 50),
-                    world_to_screen(p_3_y_world, 50),
+                    util::world_to_screen(p_2_x_world, 50),
+                    util::world_to_screen(p_2_y_world, 50),
                 ),
                 Point::new(
-                    world_to_screen(p_4_x_world, 50),
-                    world_to_screen(p_4_y_world, 50),
+                    util::world_to_screen(p_3_x_world, 50),
+                    util::world_to_screen(p_3_y_world, 50),
+                ),
+            )
+            .expect("Error drawing line");
+
+        self.sdl_canvas
+            .draw_line(
+                Point::new(
+                    util::world_to_screen(p_3_x_world, 50),
+                    util::world_to_screen(p_3_y_world, 50),
+                ),
+                Point::new(
+                    util::world_to_screen(p_4_x_world, 50),
+                    util::world_to_screen(p_4_y_world, 50),
                 ),
             )
             .expect("Error drawing line");
