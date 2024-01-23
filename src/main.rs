@@ -1,10 +1,11 @@
-mod behavior;
+mod behaviors;
+mod btree;
 mod components;
 mod input_controller;
 mod util;
 mod window;
 
-use crate::behavior::Behavior;
+use crate::btree::BehaviorTreeNode;
 use crate::components::{Food, Hunger, Movement, Position, Shape};
 use crate::input_controller::InputController;
 use crate::window::Window;
@@ -60,8 +61,11 @@ fn main() -> Result<(), String> {
     ));
 
     let mut entity_events: Vec<EntityEvent> = vec![];
-    let mut behaviors: HashMap<Entity, Behavior> = HashMap::new();
-    behaviors.insert(entity, Behavior::new());
+    let mut behaviors: HashMap<Entity, Box<dyn BehaviorTreeNode>> = HashMap::new();
+    behaviors.insert(entity, behaviors::do_nothing());
+
+    let mut knowledges: HashMap<Entity, HashMap<String, String>> = HashMap::new();
+    knowledges.insert(entity, HashMap::default());
 
     let mut instant = Instant::now();
     'main: loop {
@@ -88,10 +92,20 @@ fn main() -> Result<(), String> {
             }
         }
 
-        // behaviors
-        behaviors
-            .iter_mut()
-            .for_each(|(entity, behavior)| behavior.run(*entity, &mut world));
+        // choose behaviors
+        for (id, (hunger)) in world.query_mut::<(&Hunger)>() {
+            let mut behavior: Box<dyn BehaviorTreeNode> = behaviors::do_nothing();
+            if hunger.value > 3 {
+                behavior = behaviors::find_food();
+            }
+            behaviors.insert(id, behavior);
+        }
+
+        // run behaviors
+        behaviors.iter_mut().for_each(|(entity, behavior)| {
+            let knowledge = knowledges.get_mut(entity).unwrap();
+            behavior.run(knowledge, &mut world);
+        });
 
         // hunger
         for (_, hunger) in world.query_mut::<&mut Hunger>() {
