@@ -52,3 +52,10 @@ impl Movement {
         }
     }
 }
+
+pub struct Food {}
+impl Food {
+    pub fn new() -> Self {
+        Self {}
+    }
+}

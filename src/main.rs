@@ -5,11 +5,12 @@ mod util;
 mod window;
 
 use crate::behavior::Behavior;
-use crate::components::{Hunger, Movement, Position, Shape};
+use crate::components::{Food, Hunger, Movement, Position, Shape};
 use crate::input_controller::InputController;
 use crate::window::Window;
 use crate::EntityEventType::Move;
 use hecs::{Entity, World};
+use rand::Rng;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -41,6 +42,16 @@ fn main() -> Result<(), String> {
     };
 
     let mut world = World::new();
+
+    let mut rand = rand::thread_rng();
+    let food_to_spawn = (0..6).map(|_| {
+        let pos = Position::new(rand.gen_range(2..10) as f32, rand.gen_range(2..10) as f32);
+        let shape = Shape::new(0.2, 0.2, (150, 40, 40, 255));
+        let food = Food {};
+        (pos, shape, food)
+    });
+    world.spawn_batch(food_to_spawn);
+
     let entity = world.spawn((
         Position::new(1., 1.),
         Shape::new(0.4, 0.4, (150, 150, 150, 150)),
