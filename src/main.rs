@@ -9,7 +9,7 @@ use crate::btree::BehaviorTreeNode;
 use crate::components::{Food, Hunger, Movement, Position, Shape};
 use crate::input_controller::InputController;
 use crate::window::Window;
-use crate::EntityEventType::Move;
+use crate::EntityCommandType::Move;
 use hecs::{Entity, World};
 use rand::Rng;
 use std::collections::HashMap;
@@ -21,13 +21,13 @@ struct Properties {
 }
 
 #[derive(PartialEq)]
-enum EntityEventType {
+enum EntityCommandType {
     Move,
 }
 
-struct EntityEvent {
+struct EntityCommand {
     entity: Entity,
-    event_type: EntityEventType,
+    event_type: EntityCommandType,
     param: HashMap<String, String>,
 }
 
@@ -60,7 +60,7 @@ fn main() -> Result<(), String> {
         Movement::new(),
     ));
 
-    let mut entity_events: Vec<EntityEvent> = vec![];
+    let mut entity_commands: Vec<EntityCommand> = vec![];
     let mut behaviors: HashMap<Entity, Box<dyn BehaviorTreeNode>> = HashMap::new();
     behaviors.insert(entity, behaviors::do_nothing());
 
@@ -74,11 +74,11 @@ fn main() -> Result<(), String> {
         }
 
         // input
-        input_controller.update(&mut properties, &mut entity_events, &mut world);
+        input_controller.update(&mut properties, &mut entity_commands, &mut world);
 
-        // entity_events
-        while !entity_events.is_empty() {
-            let entity_event = entity_events.pop().unwrap();
+        // process entity commands
+        while !entity_commands.is_empty() {
+            let entity_event = entity_commands.pop().unwrap();
 
             match entity_event.event_type {
                 Move => {
