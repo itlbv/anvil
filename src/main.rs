@@ -2,12 +2,14 @@ mod behaviors;
 mod btree;
 mod components;
 mod input_controller;
+mod systems;
 mod util;
 mod window;
 
 use crate::btree::BehaviorTreeNode;
 use crate::components::{Food, Hunger, Movement, Position, Shape};
 use crate::input_controller::InputController;
+use crate::systems::{behavior, draw, hunger, movement};
 use crate::window::Window;
 use crate::EntityCommandType::MoveToPosition;
 use hecs::{Entity, World};
@@ -117,82 +119,16 @@ fn main() -> Result<(), String> {
             }
         }
 
-        // choose behaviors
-        for (id, (hunger)) in world.query_mut::<(&Hunger)>() {
-            let mut behavior: Box<dyn BehaviorTreeNode> = behaviors::do_nothing();
-            if hunger.value > 3 {
-                behavior = behaviors::find_food();
-            }
-            behaviors.insert(id, behavior);
-        }
+        behavior(
+            &mut behaviors,
+            &mut knowledges,
+            &mut entity_commands,
+            &mut world,
+        );
+        movement(&mut world);
+        hunger(instant, &mut world);
 
-        // run behaviors
-        behaviors.iter_mut().for_each(|(entity, behavior)| {
-            let knowledge = knowledges.get_mut(entity).unwrap();
-            behavior.run(knowledge, &mut entity_commands, &mut world);
-        });
-
-        // hunger
-        for (_, hunger) in world.query_mut::<&mut Hunger>() {
-            if instant - hunger.last_updated > Duration::from_secs(1) {
-                hunger.value += 1;
-                hunger.last_updated = Instant::now();
-            }
-        }
-
-        // move
-        for (_, (pos, movement)) in world.query_mut::<(&mut Position, &mut Movement)>() {
-            if !movement.active {
-                continue;
-            }
-
-            // get distance to destination
-            let dist_x = movement.destination_x - pos.x;
-            let dist_y = movement.destination_y - pos.y;
-
-            // normalise direction
-            let direction_x = dist_x / dist_x.hypot(dist_y);
-            let direction_y = dist_y / dist_x.hypot(dist_y);
-
-            // modify position
-            pos.x += direction_x * 0.07;
-            pos.y += direction_y * 0.07;
-
-            // movement is done
-            if movement.destination_x - pos.x < movement.distance
-                && movement.destination_y - pos.y < movement.distance
-            {
-                pos.x = movement.destination_x;
-                pos.y = movement.destination_y;
-                movement.active = false;
-            }
-        }
-
-        window.start_frame();
-
-        // draw entities
-        for (id, (pos, shape)) in world.query_mut::<(&Position, &Shape)>() {
-            window.draw_rect(
-                pos.x - shape.width / 2.,
-                pos.y - shape.width / 2.,
-                shape.width,
-                shape.height,
-                shape.color,
-            );
-            window.draw_dot(pos.x, pos.y, (255, 255, 255, 255));
-
-            // draw selection marker if entity is selected
-            match properties.selected_entity {
-                None => {}
-                Some(selected_entity) => {
-                    if selected_entity == id {
-                        window.draw_selection_marker(pos.x, pos.y);
-                    }
-                }
-            }
-        }
-
-        window.present_frame();
+        draw(&mut window, &properties, &mut world);
 
         std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         instant = Instant::now();
