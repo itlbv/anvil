@@ -1,4 +1,5 @@
 use crate::btree::BehaviorStatus::{Failure, Running, Success};
+use crate::Knowledge;
 use hecs::World;
 use std::collections::HashMap;
 
@@ -9,8 +10,7 @@ pub enum BehaviorStatus {
 }
 
 pub trait BehaviorTreeNode {
-    fn run(&mut self, knowledge: &mut HashMap<String, String>, world: &mut World)
-        -> BehaviorStatus;
+    fn run(&mut self, knowledge: &mut Knowledge, world: &mut World) -> BehaviorStatus;
 }
 
 pub struct Sequence {
@@ -28,11 +28,7 @@ impl Sequence {
 }
 
 impl BehaviorTreeNode for Sequence {
-    fn run(
-        &mut self,
-        knowledge: &mut HashMap<String, String>,
-        world: &mut World,
-    ) -> BehaviorStatus {
+    fn run(&mut self, knowledge: &mut Knowledge, world: &mut World) -> BehaviorStatus {
         let mut i = 0;
         while i < self.children.len() {
             if self.running_behavior_idx >= 0 {

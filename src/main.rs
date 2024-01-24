@@ -13,6 +13,7 @@ use crate::EntityCommandType::Move;
 use hecs::{Entity, World};
 use rand::Rng;
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::time::{Duration, Instant};
 
 struct Properties {
@@ -29,6 +30,12 @@ struct EntityCommand {
     entity: Entity,
     event_type: EntityCommandType,
     param: HashMap<String, String>,
+}
+
+struct Knowledge {
+    id: Entity,
+    target: Option<Entity>,
+    map: HashMap<String, String>,
 }
 
 fn main() -> Result<(), String> {
@@ -64,8 +71,15 @@ fn main() -> Result<(), String> {
     let mut behaviors: HashMap<Entity, Box<dyn BehaviorTreeNode>> = HashMap::new();
     behaviors.insert(entity, behaviors::do_nothing());
 
-    let mut knowledges: HashMap<Entity, HashMap<String, String>> = HashMap::new();
-    knowledges.insert(entity, HashMap::default());
+    let mut knowledges: HashMap<Entity, Knowledge> = HashMap::new();
+    knowledges.insert(
+        entity,
+        Knowledge {
+            id: entity,
+            target: None,
+            map: Default::default(),
+        },
+    );
 
     let mut instant = Instant::now();
     'main: loop {
