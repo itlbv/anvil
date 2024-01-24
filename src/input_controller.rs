@@ -1,4 +1,4 @@
-use crate::EntityCommandType::Move;
+use crate::EntityCommandType::MoveToPosition;
 use crate::{util, EntityCommand, Position, Properties};
 use hecs::World;
 use sdl2::event::Event;
@@ -76,7 +76,7 @@ fn right_mouse_click(
             let y_world = util::screen_to_world(y_screen, 50);
             entity_events.push(EntityCommand {
                 entity,
-                event_type: Move,
+                event_type: MoveToPosition,
                 param: [
                     (String::from("x"), x_world.to_string()),
                     (String::from("y"), y_world.to_string()),

@@ -9,7 +9,7 @@ use crate::btree::BehaviorTreeNode;
 use crate::components::{Food, Hunger, Movement, Position, Shape};
 use crate::input_controller::InputController;
 use crate::window::Window;
-use crate::EntityCommandType::Move;
+use crate::EntityCommandType::MoveToPosition;
 use hecs::{Entity, World};
 use rand::Rng;
 use std::collections::HashMap;
@@ -23,7 +23,8 @@ struct Properties {
 
 #[derive(PartialEq)]
 enum EntityCommandType {
-    Move,
+    MoveToPosition,
+    ApproachTarget,
 }
 
 struct EntityCommand {
@@ -95,11 +96,21 @@ fn main() -> Result<(), String> {
             let entity_event = entity_commands.pop().unwrap();
 
             match entity_event.event_type {
-                Move => {
+                MoveToPosition => {
                     let mut move_task = world
                         .get::<&mut Movement>(entity_event.entity)
                         .expect("Error getting Move component");
                     move_task.active = true;
+                    move_task.distance = 0.05;
+                    move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
+                    move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
+                }
+                EntityCommandType::ApproachTarget => {
+                    let mut move_task = world
+                        .get::<&mut Movement>(entity_event.entity)
+                        .expect("Error getting Move component");
+                    move_task.active = true;
+                    move_task.distance = entity_event.param["distance"].parse::<f32>().unwrap();
                     move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
                     move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
                 }
@@ -118,7 +129,7 @@ fn main() -> Result<(), String> {
         // run behaviors
         behaviors.iter_mut().for_each(|(entity, behavior)| {
             let knowledge = knowledges.get_mut(entity).unwrap();
-            behavior.run(knowledge, &mut world);
+            behavior.run(knowledge, &mut entity_commands, &mut world);
         });
 
         // hunger
@@ -148,7 +159,9 @@ fn main() -> Result<(), String> {
             pos.y += direction_y * 0.07;
 
             // movement is done
-            if movement.destination_x - pos.x < 0.05 && movement.destination_y - pos.y < 0.05 {
+            if movement.destination_x - pos.x < movement.distance
+                && movement.destination_y - pos.y < movement.distance
+            {
                 pos.x = movement.destination_x;
                 pos.y = movement.destination_y;
                 movement.active = false;
@@ -181,7 +194,7 @@ fn main() -> Result<(), String> {
 
         window.present_frame();
 
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+        std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         instant = Instant::now();
     }
 
