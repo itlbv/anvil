@@ -6,22 +6,29 @@ use hecs::{Entity, World};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-pub fn behavior(
+pub fn choose_behaviors(
     behaviors: &mut HashMap<Entity, Box<dyn BehaviorTreeNode>>,
     knowledges: &mut HashMap<Entity, Knowledge>,
     entity_commands: &mut Vec<EntityCommand>,
     world: &mut World,
 ) {
-    // choose behaviors
-    for (id, (hunger)) in world.query_mut::<(&Hunger)>() {
+    // react to hunger, choose behavior
+    for (entity, (hunger)) in world.query_mut::<(&Hunger)>() {
         let mut behavior: Box<dyn BehaviorTreeNode> = behaviors::do_nothing();
         if hunger.value > 3 {
             behavior = behaviors::find_food();
+            println!("Behavior updated! Hungry!")
         }
-        behaviors.insert(id, behavior);
+        behaviors.insert(entity, behavior);
     }
+}
 
-    // run behaviors
+pub fn run_behaviors(
+    behaviors: &mut HashMap<Entity, Box<dyn BehaviorTreeNode>>,
+    knowledges: &mut HashMap<Entity, Knowledge>,
+    entity_commands: &mut Vec<EntityCommand>,
+    world: &mut World,
+) {
     behaviors.iter_mut().for_each(|(entity, behavior)| {
         let knowledge = knowledges.get_mut(entity).unwrap();
         behavior.run(knowledge, entity_commands, world);
@@ -45,15 +52,6 @@ pub fn movement(world: &mut World) {
         // modify position
         pos.x += direction_x * 0.07;
         pos.y += direction_y * 0.07;
-
-        // movement is done
-        if movement.destination_x - pos.x < movement.distance
-            && movement.destination_y - pos.y < movement.distance
-        {
-            pos.x = movement.destination_x;
-            pos.y = movement.destination_y;
-            movement.active = false;
-        }
     }
 }
 

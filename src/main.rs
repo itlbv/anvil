@@ -9,7 +9,7 @@ mod window;
 use crate::btree::BehaviorTreeNode;
 use crate::components::{Food, Hunger, Movement, Position, Shape};
 use crate::input_controller::InputController;
-use crate::systems::{behavior, draw, hunger, movement};
+use crate::systems::{choose_behaviors, draw, hunger, movement, run_behaviors};
 use crate::window::Window;
 use crate::EntityCommandType::MoveToPosition;
 use hecs::{Entity, World};
@@ -119,7 +119,16 @@ fn main() -> Result<(), String> {
             }
         }
 
-        behavior(
+        if instant - behavior_last_updated > Duration::from_secs(10) {
+            choose_behaviors(
+                &mut behaviors,
+                &mut knowledges,
+                &mut entity_commands,
+                &mut world,
+            );
+            behavior_last_updated = Instant::now();
+        }
+        run_behaviors(
             &mut behaviors,
             &mut knowledges,
             &mut entity_commands,
