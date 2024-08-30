@@ -1,6 +1,6 @@
 use crate::btree::BehaviorStatus::{Failure, Running, Success};
 use crate::btree::{BehaviorStatus, BehaviorTreeNode, Sequence};
-use crate::components::{Food, Position};
+use crate::components::{Food, Movement, Position};
 use crate::{EntityCommand, EntityCommandType, Knowledge};
 use hecs::World;
 
@@ -69,6 +69,7 @@ impl BehaviorTreeNode for FindNearestFood {
             None => Failure,
             Some(id) => {
                 knowledge.target = Option::from(id);
+                println!("Finished finding food");
                 Success
             }
         }
@@ -94,6 +95,19 @@ impl BehaviorTreeNode for MoveToPickUp {
         if knowledge.target.is_none() {
             println!("Can't execute MoveToPickUp: no target set.");
             return Failure;
+        }
+
+        // check if movement is done
+        for (_, (pos, movement)) in world.query_mut::<(&mut Position, &mut Movement)>() {
+            if movement.destination_x - pos.x < movement.distance
+                && movement.destination_y - pos.y < movement.distance
+            {
+                pos.x = movement.destination_x;
+                pos.y = movement.destination_y;
+                movement.active = false;
+                println!("Finished movement");
+                return Success;
+            }
         }
 
         // issue move command and wait for signal
