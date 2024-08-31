@@ -1,6 +1,6 @@
 use crate::btree::BehaviorStatus::{Failure, Running, Success};
 use crate::{EntityCommand, Knowledge};
-use hecs::World;
+use hecs::World as ComponentRegistry;
 
 pub enum BehaviorStatus {
     Success,
@@ -13,7 +13,7 @@ pub trait BehaviorTreeNode {
         &mut self,
         knowledge: &mut Knowledge,
         entity_commands: &mut Vec<EntityCommand>,
-        world: &mut World,
+        registry: &mut ComponentRegistry,
     ) -> BehaviorStatus;
 }
 
@@ -36,14 +36,14 @@ impl BehaviorTreeNode for Sequence {
         &mut self,
         knowledge: &mut Knowledge,
         entity_commands: &mut Vec<EntityCommand>,
-        world: &mut World,
+        registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         let mut i = 0;
         while i < self.children.len() {
             if self.running_behavior_idx >= 0 {
                 i = self.running_behavior_idx as usize;
             }
-            let status = self.children[i].run(knowledge, entity_commands, world);
+            let status = self.children[i].run(knowledge, entity_commands, registry);
             match status {
                 Failure => return Failure,
                 Success => {

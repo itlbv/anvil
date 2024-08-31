@@ -12,7 +12,8 @@ use crate::input_controller::InputController;
 use crate::systems::{choose_behaviors, draw, hunger, movement, run_behaviors};
 use crate::window::Window;
 use crate::EntityCommandType::MoveToPosition;
-use hecs::{Entity, World};
+use hecs::Entity;
+use hecs::World as ComponentRegistry;
 use rand::Rng;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -41,6 +42,20 @@ struct Knowledge {
     map: HashMap<String, String>,
 }
 
+trait EntityTask {
+    fn run(&mut self, entity: Entity, world: &mut ComponentRegistry);
+}
+
+struct MoveTask {}
+
+impl EntityTask for MoveTask {
+    fn run(&mut self, entity: Entity, world: &mut ComponentRegistry) {
+        // check if close to target already
+
+        // when task finished tell to continue behavior
+    }
+}
+
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
 
@@ -52,7 +67,7 @@ fn main() -> Result<(), String> {
         selected_entity: None,
     };
 
-    let mut world = World::new();
+    let mut registry = ComponentRegistry::new();
 
     let mut rand = rand::thread_rng();
     let food_to_spawn = (0..6).map(|_| {
@@ -61,9 +76,9 @@ fn main() -> Result<(), String> {
         let food = Food {};
         (pos, shape, food)
     });
-    world.spawn_batch(food_to_spawn);
+    registry.spawn_batch(food_to_spawn);
 
-    let entity = world.spawn((
+    let entity = registry.spawn((
         Position::new(1., 1.),
         Shape::new(0.4, 0.4, (150, 150, 150, 150)),
         Hunger::new(),
@@ -84,22 +99,28 @@ fn main() -> Result<(), String> {
         },
     );
 
+    // entity tasks
+    let mut entity_tasks: HashMap<Entity, Vec<Box<dyn EntityTask>>> = HashMap::new();
+    //
+
     let mut instant = Instant::now();
+    let mut behavior_last_updated = Instant::now();
     'main: loop {
         if properties.quit {
             break 'main;
         }
 
         // input
-        input_controller.update(&mut properties, &mut entity_commands, &mut world);
+        input_controller.update(&mut properties, &mut entity_commands, &mut registry);
 
         // process entity commands
         while !entity_commands.is_empty() {
+            // break;
             let entity_event = entity_commands.pop().unwrap();
 
             match entity_event.event_type {
                 MoveToPosition => {
-                    let mut move_task = world
+                    let mut move_task = registry
                         .get::<&mut Movement>(entity_event.entity)
                         .expect("Error getting Move component");
                     move_task.active = true;
@@ -108,7 +129,7 @@ fn main() -> Result<(), String> {
                     move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
                 }
                 EntityCommandType::ApproachTarget => {
-                    let mut move_task = world
+                    let mut move_task = registry
                         .get::<&mut Movement>(entity_event.entity)
                         .expect("Error getting Move component");
                     move_task.active = true;
@@ -124,7 +145,7 @@ fn main() -> Result<(), String> {
                 &mut behaviors,
                 &mut knowledges,
                 &mut entity_commands,
-                &mut world,
+                &mut registry,
             );
             behavior_last_updated = Instant::now();
         }
@@ -132,12 +153,12 @@ fn main() -> Result<(), String> {
             &mut behaviors,
             &mut knowledges,
             &mut entity_commands,
-            &mut world,
+            &mut registry,
         );
-        movement(&mut world);
-        hunger(instant, &mut world);
+        movement(&mut registry);
+        hunger(instant, &mut registry);
 
-        draw(&mut window, &properties, &mut world);
+        draw(&mut window, &properties, &mut registry);
 
         std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         instant = Instant::now();

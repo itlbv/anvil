@@ -2,7 +2,7 @@ use crate::btree::BehaviorStatus::{Failure, Running, Success};
 use crate::btree::{BehaviorStatus, BehaviorTreeNode, Sequence};
 use crate::components::{Food, Movement, Position};
 use crate::{EntityCommand, EntityCommandType, Knowledge};
-use hecs::World;
+use hecs::World as ComponentRegistry;
 
 pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
     Box::new(DoNothing {})
@@ -24,7 +24,7 @@ impl BehaviorTreeNode for DoNothing {
         &mut self,
         _knowledge: &mut Knowledge,
         _entity_commands: &mut Vec<EntityCommand>,
-        _world: &mut World,
+        _registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         Success
     }
@@ -43,10 +43,10 @@ impl BehaviorTreeNode for FindNearestFood {
         &mut self,
         knowledge: &mut Knowledge,
         entity_commands: &mut Vec<EntityCommand>,
-        world: &mut World,
+        registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         // find own position
-        let own_pos = world.get::<&Position>(knowledge.id).unwrap();
+        let own_pos = registry.get::<&Position>(knowledge.id).unwrap();
         let own_pos_x = own_pos.x;
         let own_pos_y = own_pos.y;
         drop(own_pos);
@@ -54,7 +54,7 @@ impl BehaviorTreeNode for FindNearestFood {
         // find nearest food
         let mut nearest_food = None;
         let mut smallest_distance = f32::MAX;
-        for (id, (_food, pos)) in world.query_mut::<(&Food, &Position)>() {
+        for (id, (_food, pos)) in registry.query_mut::<(&Food, &Position)>() {
             let dist_x = (pos.x - own_pos_x).abs();
             let dist_y = (pos.y - own_pos_y).abs();
             let dist = dist_x.hypot(dist_y);
@@ -89,7 +89,7 @@ impl BehaviorTreeNode for MoveToPickUp {
         &mut self,
         knowledge: &mut Knowledge,
         entity_commands: &mut Vec<EntityCommand>,
-        world: &mut World,
+        registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         // if no target, print and exit with failure
         if knowledge.target.is_none() {
@@ -98,7 +98,7 @@ impl BehaviorTreeNode for MoveToPickUp {
         }
 
         // check if movement is done
-        for (_, (pos, movement)) in world.query_mut::<(&mut Position, &mut Movement)>() {
+        for (_, (pos, movement)) in registry.query_mut::<(&mut Position, &mut Movement)>() {
             if movement.destination_x - pos.x < movement.distance
                 && movement.destination_y - pos.y < movement.distance
             {
@@ -112,7 +112,7 @@ impl BehaviorTreeNode for MoveToPickUp {
 
         // issue move command and wait for signal
         let target = knowledge.target.unwrap();
-        let target_pos = world.get::<&Position>(target).unwrap();
+        let target_pos = registry.get::<&Position>(target).unwrap();
         let target_x = target_pos.x;
         let target_y = target_pos.y;
         entity_commands.push(EntityCommand {

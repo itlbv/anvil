@@ -1,6 +1,6 @@
 use crate::EntityCommandType::MoveToPosition;
 use crate::{util, EntityCommand, Position, Properties};
-use hecs::World;
+use hecs::World as ComponentRegistry;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
@@ -21,7 +21,7 @@ impl InputController {
         &mut self,
         properties: &mut Properties,
         entity_events: &mut Vec<EntityCommand>,
-        world: &mut World,
+        registry: &mut ComponentRegistry,
     ) {
         for event in self.sdl_events.poll_iter() {
             match event {
@@ -35,7 +35,7 @@ impl InputController {
                     x,
                     y,
                     ..
-                } => left_mouse_click(x, y, properties, world),
+                } => left_mouse_click(x, y, properties, registry),
                 Event::MouseButtonUp {
                     mouse_btn: MouseButton::Right,
                     x,
@@ -48,12 +48,17 @@ impl InputController {
     }
 }
 
-fn left_mouse_click(x_screen: i32, y_screen: i32, properties: &mut Properties, world: &mut World) {
+fn left_mouse_click(
+    x_screen: i32,
+    y_screen: i32,
+    properties: &mut Properties,
+    registry: &mut ComponentRegistry,
+) {
     let x_world = util::screen_to_world(x_screen, 50);
     let y_world = util::screen_to_world(y_screen, 50);
 
     // find close entity
-    for (id, pos) in world.query_mut::<&Position>() {
+    for (id, pos) in registry.query_mut::<&Position>() {
         if (pos.x - x_world).abs() < 0.5 && (pos.y - y_world).abs() < 0.5 {
             properties.selected_entity = Option::from(id);
         }

@@ -2,7 +2,8 @@ use crate::btree::BehaviorTreeNode;
 use crate::components::{Hunger, Movement, Position, Shape};
 use crate::window::Window;
 use crate::{behaviors, EntityCommand, Knowledge, Properties};
-use hecs::{Entity, World};
+use hecs::Entity;
+use hecs::World as ComponentRegistry;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -10,10 +11,10 @@ pub fn choose_behaviors(
     behaviors: &mut HashMap<Entity, Box<dyn BehaviorTreeNode>>,
     knowledges: &mut HashMap<Entity, Knowledge>,
     entity_commands: &mut Vec<EntityCommand>,
-    world: &mut World,
+    registry: &mut ComponentRegistry,
 ) {
     // react to hunger, choose behavior
-    for (entity, (hunger)) in world.query_mut::<(&Hunger)>() {
+    for (entity, (hunger)) in registry.query_mut::<(&Hunger)>() {
         let mut behavior: Box<dyn BehaviorTreeNode> = behaviors::do_nothing();
         if hunger.value > 3 {
             behavior = behaviors::find_food();
@@ -27,16 +28,16 @@ pub fn run_behaviors(
     behaviors: &mut HashMap<Entity, Box<dyn BehaviorTreeNode>>,
     knowledges: &mut HashMap<Entity, Knowledge>,
     entity_commands: &mut Vec<EntityCommand>,
-    world: &mut World,
+    registry: &mut ComponentRegistry,
 ) {
     behaviors.iter_mut().for_each(|(entity, behavior)| {
         let knowledge = knowledges.get_mut(entity).unwrap();
-        behavior.run(knowledge, entity_commands, world);
+        behavior.run(knowledge, entity_commands, registry);
     });
 }
 
-pub fn movement(world: &mut World) {
-    for (_, (pos, movement)) in world.query_mut::<(&mut Position, &mut Movement)>() {
+pub fn movement(registry: &mut ComponentRegistry) {
+    for (_, (pos, movement)) in registry.query_mut::<(&mut Position, &mut Movement)>() {
         if !movement.active {
             continue;
         }
@@ -55,8 +56,8 @@ pub fn movement(world: &mut World) {
     }
 }
 
-pub fn hunger(instant: Instant, world: &mut World) {
-    for (_, hunger) in world.query_mut::<&mut Hunger>() {
+pub fn hunger(instant: Instant, registry: &mut ComponentRegistry) {
+    for (_, hunger) in registry.query_mut::<&mut Hunger>() {
         if instant - hunger.last_updated > Duration::from_secs(1) {
             hunger.value += 1;
             hunger.last_updated = Instant::now();
@@ -64,10 +65,10 @@ pub fn hunger(instant: Instant, world: &mut World) {
     }
 }
 
-pub fn draw(window: &mut Window, properties: &Properties, world: &mut World) {
+pub fn draw(window: &mut Window, properties: &Properties, registry: &mut ComponentRegistry) {
     window.start_frame();
 
-    for (id, (pos, shape)) in world.query_mut::<(&Position, &Shape)>() {
+    for (id, (pos, shape)) in registry.query_mut::<(&Position, &Shape)>() {
         window.draw_rect(
             pos.x - shape.width / 2.,
             pos.y - shape.width / 2.,
