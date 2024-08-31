@@ -37,7 +37,7 @@ struct EntityCommand {
 }
 
 struct Knowledge {
-    id: Entity,
+    own_id: Entity,
     target: Option<Entity>,
     map: HashMap<String, String>,
 }
@@ -93,7 +93,7 @@ fn main() -> Result<(), String> {
     knowledges.insert(
         entity,
         Knowledge {
-            id: entity,
+            own_id: entity,
             target: None,
             map: Default::default(),
         },

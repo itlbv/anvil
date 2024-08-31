@@ -46,7 +46,7 @@ impl BehaviorTreeNode for FindNearestFood {
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         // find own position
-        let own_pos = registry.get::<&Position>(knowledge.id).unwrap();
+        let own_pos = registry.get::<&Position>(knowledge.own_id).unwrap();
         let own_pos_x = own_pos.x;
         let own_pos_y = own_pos.y;
         drop(own_pos);
@@ -97,17 +97,16 @@ impl BehaviorTreeNode for MoveToPickUp {
             return Failure;
         }
 
-        // check if movement is done
-        for (_, (pos, movement)) in registry.query_mut::<(&mut Position, &mut Movement)>() {
-            if movement.destination_x - pos.x < movement.distance
-                && movement.destination_y - pos.y < movement.distance
-            {
-                pos.x = movement.destination_x;
-                pos.y = movement.destination_y;
-                movement.active = false;
-                println!("Finished movement");
-                return Success;
-            }
+        let target = knowledge.target.unwrap();
+        let target_pos = registry.get::<&Position>(target).unwrap();
+        let own_pos = registry.get::<&Position>(knowledge.own_id).unwrap();
+        let mut movement = registry.get::<&mut Movement>(knowledge.own_id).unwrap();
+        if (own_pos.x - target_pos.x).abs() < movement.distance
+            && (own_pos.y - target_pos.y).abs() < movement.distance
+        {
+            movement.active = false;
+            println!("Finished movement");
+            return Success;
         }
 
         // issue move command and wait for signal
@@ -116,7 +115,7 @@ impl BehaviorTreeNode for MoveToPickUp {
         let target_x = target_pos.x;
         let target_y = target_pos.y;
         entity_commands.push(EntityCommand {
-            entity: knowledge.id,
+            entity: knowledge.own_id,
             event_type: EntityCommandType::ApproachTarget,
             param: [
                 ("x".to_string(), target_x.to_string()),
