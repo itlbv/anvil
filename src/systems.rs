@@ -5,7 +5,6 @@ use crate::window::Window;
 use crate::{behaviors, EntityCommand, Knowledge, Properties};
 use hecs::Entity;
 use hecs::World as ComponentRegistry;
-use sdl2::libc::stat;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
