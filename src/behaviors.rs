@@ -68,8 +68,8 @@ impl BehaviorTreeNode for FindNearestFood {
         // set target
         match nearest_food {
             None => Failure,
-            Some(id) => {
-                knowledge.target = Option::from(id);
+            Some(target_entity) => {
+                knowledge.target = Option::from(target_entity);
                 println!("Finished finding food");
                 Success
             }
