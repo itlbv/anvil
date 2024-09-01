@@ -2,7 +2,7 @@ use crate::btree::BehaviorStatus::{Failure, Running, Success};
 use crate::btree::{BehaviorStatus, BehaviorTreeNode, Sequence};
 use crate::components::StateType::{IDLE, MOVE};
 use crate::components::{Food, Movement, Position, State};
-use crate::{EntityCommand, EntityCommandType, Knowledge, MoveTask};
+use crate::{EntityCommand, Knowledge};
 use hecs::World as ComponentRegistry;
 
 pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
