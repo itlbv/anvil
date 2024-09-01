@@ -12,14 +12,14 @@ pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
 pub fn find_food() -> Box<Sequence> {
     Box::new(Sequence::of(vec![
         FindNearestFood::new(),
-        MoveToPickUp::new(),
+        MoveToPosition::new(),
         // pick up
         // consume
     ]))
 }
 
 pub fn move_to() -> Box<dyn BehaviorTreeNode> {
-    Box::new(MoveToPickUp {})
+    Box::new(MoveToPosition {})
 }
 
 struct DoNothing {}
@@ -81,15 +81,15 @@ impl BehaviorTreeNode for FindNearestFood {
     }
 }
 
-struct MoveToPickUp {}
+struct MoveToPosition {}
 
-impl MoveToPickUp {
+impl MoveToPosition {
     fn new() -> Box<Self> {
-        Box::new(MoveToPickUp {})
+        Box::new(MoveToPosition {})
     }
 }
 
-impl BehaviorTreeNode for MoveToPickUp {
+impl BehaviorTreeNode for MoveToPosition {
     fn run(
         &mut self,
         knowledge: &mut Knowledge,
@@ -116,18 +116,5 @@ impl BehaviorTreeNode for MoveToPickUp {
         movement.distance = 0.5;
 
         Running
-
-        // // issue move command and wait for signal
-        // entity_commands.push(EntityCommand {
-        //     entity: knowledge.own_id,
-        //     event_type: EntityCommandType::ApproachTarget,
-        //     param: [
-        //         ("x".to_string(), knowledge.destination_x.to_string()),
-        //         ("y".to_string(), knowledge.destination_y.to_string()),
-        //         ("distance".to_string(), "0.5".to_string()),
-        //     ]
-        //     .into(),
-        // });
-        // return Running;
     }
 }
