@@ -130,7 +130,7 @@ fn main() -> Result<(), String> {
                 MoveToPosition => {
                     // dispatch MoveToBehavior for an entity
                     let mut entity_behaviors = behaviors.get_mut(&entity_event.entity).unwrap();
-                    entity_behaviors.insert(0, behaviors::move_to());
+                    entity_behaviors.insert(0, behaviors::move_to_position());
                     // add info to knowledge
                     let mut knowledge = knowledges.get_mut(&entity_event.entity).unwrap();
                     knowledge.destination_x = entity_event.param["x"].parse::<f32>().unwrap();

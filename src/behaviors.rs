@@ -12,14 +12,18 @@ pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
 pub fn find_food() -> Box<Sequence> {
     Box::new(Sequence::of(vec![
         FindNearestFood::new(),
-        MoveToPosition::new(),
+        MoveToTarget::new(),
         // pick up
         // consume
     ]))
 }
 
-pub fn move_to() -> Box<dyn BehaviorTreeNode> {
+pub fn move_to_position() -> Box<dyn BehaviorTreeNode> {
     Box::new(MoveToPosition {})
+}
+
+pub fn move_to_target() -> Box<dyn BehaviorTreeNode> {
+    Box::new(MoveToTarget {})
 }
 
 struct DoNothing {}
@@ -105,7 +109,7 @@ impl BehaviorTreeNode for MoveToPosition {
             && (own_pos.y - knowledge.destination_y).abs() < movement.distance
         {
             state.state = IDLE;
-            println!("Finished movement");
+            println!("Finished moving to position");
             return Success;
         }
 
@@ -113,6 +117,52 @@ impl BehaviorTreeNode for MoveToPosition {
         state.state = MOVE;
         movement.destination_x = knowledge.destination_x;
         movement.destination_y = knowledge.destination_y;
+        movement.distance = 0.1;
+
+        Running
+    }
+}
+
+struct MoveToTarget {}
+
+impl MoveToTarget {
+    fn new() -> Box<Self> {
+        Box::new(MoveToTarget {})
+    }
+}
+
+impl BehaviorTreeNode for MoveToTarget {
+    fn run(
+        &mut self,
+        knowledge: &mut Knowledge,
+        entity_commands: &mut Vec<EntityCommand>,
+        registry: &mut ComponentRegistry,
+    ) -> BehaviorStatus {
+        // check if target is set
+        if knowledge.target.is_none() {
+            println!("Target is not set, cannot execute MoveToEntity!")
+        }
+
+        let own_pos = registry.get::<&Position>(knowledge.own_id).unwrap();
+        let target_pos = registry
+            .get::<&Position>(knowledge.target.unwrap())
+            .unwrap();
+        let mut movement = registry.get::<&mut Movement>(knowledge.own_id).unwrap();
+        let mut state = registry.get::<&mut State>(knowledge.own_id).unwrap();
+
+        // check if already arrived
+        if (own_pos.x - target_pos.x).abs() < movement.distance
+            && (own_pos.y - target_pos.y).abs() < movement.distance
+        {
+            state.state = IDLE;
+            println!("Finished moving to target");
+            return Success;
+        }
+
+        // start movement
+        state.state = MOVE;
+        movement.destination_x = target_pos.x;
+        movement.destination_y = target_pos.y;
         movement.distance = 0.5;
 
         Running
