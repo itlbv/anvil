@@ -20,6 +20,8 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 
+type BehaviorList = Vec<(HashMap<String, String>, Box<dyn BehaviorTreeNode>)>;
+
 struct Properties {
     quit: bool,
     selected_entity: Option<Entity>,
@@ -88,8 +90,8 @@ fn main() -> Result<(), String> {
     ));
 
     let mut entity_commands: Vec<EntityCommand> = vec![];
-    let mut behaviors: HashMap<Entity, Vec<Box<dyn BehaviorTreeNode>>> = HashMap::new();
-    behaviors.insert(entity, vec![behaviors::do_nothing()]);
+    let mut behaviors: HashMap<Entity, BehaviorList> = HashMap::new();
+    behaviors.insert(entity, vec![(HashMap::new(), behaviors::do_nothing())]);
 
     let mut knowledges: HashMap<Entity, Knowledge> = HashMap::new();
     knowledges.insert(

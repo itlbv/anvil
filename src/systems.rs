@@ -3,14 +3,14 @@ use crate::btree::{BehaviorStatus, BehaviorTreeNode};
 use crate::components::StateType::MOVE;
 use crate::components::{Hunger, Movement, Position, Shape, State};
 use crate::window::Window;
-use crate::{behaviors, EntityCommand, Knowledge, Properties};
+use crate::{behaviors, BehaviorList, EntityCommand, Knowledge, Properties};
 use hecs::Entity;
 use hecs::World as ComponentRegistry;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 pub fn choose_behaviors(
-    behaviors: &mut HashMap<Entity, Vec<Box<dyn BehaviorTreeNode>>>,
+    behaviors: &mut HashMap<Entity, BehaviorList>,
     knowledges: &mut HashMap<Entity, Knowledge>,
     entity_commands: &mut Vec<EntityCommand>,
     registry: &mut ComponentRegistry,
@@ -22,12 +22,12 @@ pub fn choose_behaviors(
             behavior = behaviors::find_food();
             println!("Behavior updated! Hungry!")
         }
-        behaviors.insert(entity, vec![behavior]);
+        behaviors.insert(entity, vec![(HashMap::new(), behavior)]);
     }
 }
 
 pub fn run_behaviors(
-    behaviors: &mut HashMap<Entity, Vec<Box<dyn BehaviorTreeNode>>>,
+    behaviors: &mut HashMap<Entity, BehaviorList>,
     knowledges: &mut HashMap<Entity, Knowledge>,
     entity_commands: &mut Vec<EntityCommand>,
     registry: &mut ComponentRegistry,
@@ -37,15 +37,17 @@ pub fn run_behaviors(
         // if behaviors is empty, pring message and assign do_nothing()
         if behavior_vec.is_empty() {
             println!("All behaviors completed, assigning DoNothing");
-            behavior_vec.push(behaviors::do_nothing())
+            behavior_vec.push((HashMap::new(), behaviors::do_nothing()))
         }
         // when returned status is not running, remove finished behavior
-        let status = behavior_vec[0].run(knowledge, entity_commands, registry);
+        let status = behavior_vec[0].1.run(knowledge, entity_commands, registry);
         match status {
-            Running => {
+            BehaviorStatus::Success => {
                 behavior_vec.remove(0);
             }
-            _ => {}
+            BehaviorStatus::Failure => {
+                behavior_vec.remove(0);
+            }
             _ => {}
         }
     });

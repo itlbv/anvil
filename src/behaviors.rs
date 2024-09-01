@@ -27,7 +27,7 @@ impl BehaviorTreeNode for DoNothing {
         _entity_commands: &mut Vec<EntityCommand>,
         _registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
-        Success
+        Running
     }
 }
 
