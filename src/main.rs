@@ -7,7 +7,8 @@ mod util;
 mod window;
 
 use crate::btree::BehaviorTreeNode;
-use crate::components::{Food, Hunger, Movement, Position, Shape};
+use crate::components::StateType::{IDLE, MOVE};
+use crate::components::{Food, Hunger, Movement, Position, Shape, State, StateType};
 use crate::input_controller::InputController;
 use crate::systems::{choose_behaviors, draw, hunger, movement, run_behaviors};
 use crate::window::Window;
@@ -83,6 +84,7 @@ fn main() -> Result<(), String> {
         Shape::new(0.4, 0.4, (150, 150, 150, 150)),
         Hunger::new(),
         Movement::new(),
+        State { state: IDLE },
     ));
 
     let mut entity_commands: Vec<EntityCommand> = vec![];
@@ -123,7 +125,8 @@ fn main() -> Result<(), String> {
                     let mut move_task = registry
                         .get::<&mut Movement>(entity_event.entity)
                         .expect("Error getting Move component");
-                    move_task.active = true;
+                    let mut state = registry.get::<&mut State>(entity_event.entity).unwrap();
+                    state.state = MOVE;
                     move_task.distance = 0.05;
                     move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
                     move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
@@ -132,7 +135,8 @@ fn main() -> Result<(), String> {
                     let mut move_task = registry
                         .get::<&mut Movement>(entity_event.entity)
                         .expect("Error getting Move component");
-                    move_task.active = true;
+                    let mut state = registry.get::<&mut State>(entity_event.entity).unwrap();
+                    state.state = MOVE;
                     move_task.distance = entity_event.param["distance"].parse::<f32>().unwrap();
                     move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
                     move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();

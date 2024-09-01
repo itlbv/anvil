@@ -1,9 +1,11 @@
 use crate::btree::BehaviorTreeNode;
-use crate::components::{Hunger, Movement, Position, Shape};
+use crate::components::StateType::MOVE;
+use crate::components::{Hunger, Movement, Position, Shape, State};
 use crate::window::Window;
 use crate::{behaviors, EntityCommand, Knowledge, Properties};
 use hecs::Entity;
 use hecs::World as ComponentRegistry;
+use sdl2::libc::stat;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -37,8 +39,10 @@ pub fn run_behaviors(
 }
 
 pub fn movement(registry: &mut ComponentRegistry) {
-    for (_, (pos, movement)) in registry.query_mut::<(&mut Position, &mut Movement)>() {
-        if !movement.active {
+    for (_, (pos, movement, state)) in
+        registry.query_mut::<(&mut Position, &mut Movement, &State)>()
+    {
+        if state.state != MOVE {
             continue;
         }
 

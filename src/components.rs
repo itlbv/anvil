@@ -1,5 +1,15 @@
 use std::time::Instant;
 
+#[derive(PartialEq)]
+pub enum StateType {
+    IDLE,
+    MOVE,
+}
+
+pub struct State {
+    pub state: StateType,
+}
+
 pub struct Hunger {
     pub value: u8,
     pub last_updated: Instant,
@@ -39,8 +49,6 @@ impl Shape {
 }
 
 pub struct Movement {
-    pub active: bool,
-    pub approach_to_distance: bool,
     pub distance: f32,
     pub destination_x: f32,
     pub destination_y: f32,
@@ -49,8 +57,6 @@ pub struct Movement {
 impl Movement {
     pub fn new() -> Self {
         Self {
-            active: false,
-            approach_to_distance: false,
             distance: 0.0,
             destination_x: 0.0,
             destination_y: 0.0,

@@ -1,6 +1,7 @@
 use crate::btree::BehaviorStatus::{Failure, Running, Success};
 use crate::btree::{BehaviorStatus, BehaviorTreeNode, Sequence};
-use crate::components::{Food, Movement, Position};
+use crate::components::StateType::IDLE;
+use crate::components::{Food, Movement, Position, State};
 use crate::{EntityCommand, EntityCommandType, Knowledge};
 use hecs::World as ComponentRegistry;
 
@@ -104,22 +105,19 @@ impl BehaviorTreeNode for MoveToPickUp {
         if (own_pos.x - target_pos.x).abs() < movement.distance
             && (own_pos.y - target_pos.y).abs() < movement.distance
         {
-            movement.active = false;
+            let mut state = registry.get::<&mut State>(knowledge.own_id).unwrap();
+            state.state = IDLE;
             println!("Finished movement");
             return Success;
         }
 
         // issue move command and wait for signal
-        let target = knowledge.target.unwrap();
-        let target_pos = registry.get::<&Position>(target).unwrap();
-        let target_x = target_pos.x;
-        let target_y = target_pos.y;
         entity_commands.push(EntityCommand {
             entity: knowledge.own_id,
             event_type: EntityCommandType::ApproachTarget,
             param: [
-                ("x".to_string(), target_x.to_string()),
-                ("y".to_string(), target_y.to_string()),
+                ("x".to_string(), target_pos.x.to_string()),
+                ("y".to_string(), target_pos.y.to_string()),
                 ("distance".to_string(), "0.5".to_string()),
             ]
             .into(),
