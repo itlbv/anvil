@@ -88,8 +88,8 @@ fn main() -> Result<(), String> {
     ));
 
     let mut entity_commands: Vec<EntityCommand> = vec![];
-    let mut behaviors: HashMap<Entity, Box<dyn BehaviorTreeNode>> = HashMap::new();
-    behaviors.insert(entity, behaviors::do_nothing());
+    let mut behaviors: HashMap<Entity, Vec<Box<dyn BehaviorTreeNode>>> = HashMap::new();
+    behaviors.insert(entity, vec![behaviors::do_nothing()]);
 
     let mut knowledges: HashMap<Entity, Knowledge> = HashMap::new();
     knowledges.insert(

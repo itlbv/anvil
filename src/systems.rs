@@ -1,4 +1,5 @@
-use crate::btree::BehaviorTreeNode;
+use crate::btree::BehaviorStatus::Running;
+use crate::btree::{BehaviorStatus, BehaviorTreeNode};
 use crate::components::StateType::MOVE;
 use crate::components::{Hunger, Movement, Position, Shape, State};
 use crate::window::Window;
@@ -9,31 +10,44 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 pub fn choose_behaviors(
-    behaviors: &mut HashMap<Entity, Box<dyn BehaviorTreeNode>>,
+    behaviors: &mut HashMap<Entity, Vec<Box<dyn BehaviorTreeNode>>>,
     knowledges: &mut HashMap<Entity, Knowledge>,
     entity_commands: &mut Vec<EntityCommand>,
     registry: &mut ComponentRegistry,
 ) {
     // react to hunger, choose behavior
     for (entity, (hunger)) in registry.query_mut::<(&Hunger)>() {
-        let mut behavior: Box<dyn BehaviorTreeNode> = behaviors::do_nothing();
+        let mut behavior = behaviors::do_nothing();
         if hunger.value > 3 {
             behavior = behaviors::find_food();
             println!("Behavior updated! Hungry!")
         }
-        behaviors.insert(entity, behavior);
+        behaviors.insert(entity, vec![behavior]);
     }
 }
 
 pub fn run_behaviors(
-    behaviors: &mut HashMap<Entity, Box<dyn BehaviorTreeNode>>,
+    behaviors: &mut HashMap<Entity, Vec<Box<dyn BehaviorTreeNode>>>,
     knowledges: &mut HashMap<Entity, Knowledge>,
     entity_commands: &mut Vec<EntityCommand>,
     registry: &mut ComponentRegistry,
 ) {
-    behaviors.iter_mut().for_each(|(entity, behavior)| {
+    behaviors.iter_mut().for_each(|(entity, behavior_vec)| {
         let knowledge = knowledges.get_mut(entity).unwrap();
-        behavior.run(knowledge, entity_commands, registry);
+        // if behaviors is empty, pring message and assign do_nothing()
+        if behavior_vec.is_empty() {
+            println!("All behaviors completed, assigning DoNothing");
+            behavior_vec.push(behaviors::do_nothing())
+        }
+        // when returned status is not running, remove finished behavior
+        let status = behavior_vec[0].run(knowledge, entity_commands, registry);
+        match status {
+            Running => {
+                behavior_vec.remove(0);
+            }
+            _ => {}
+            _ => {}
+        }
     });
 }
 
