@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 
-type BehaviorList = Vec<(HashMap<String, String>, Box<dyn BehaviorTreeNode>)>;
+type BehaviorList = Vec<Box<dyn BehaviorTreeNode>>;
 
 struct Properties {
     quit: bool,
@@ -42,6 +42,8 @@ struct EntityCommand {
 struct Knowledge {
     own_id: Entity,
     target: Option<Entity>,
+    destination_x: f32,
+    destination_y: f32,
     map: HashMap<String, String>,
 }
 
@@ -91,7 +93,7 @@ fn main() -> Result<(), String> {
 
     let mut entity_commands: Vec<EntityCommand> = vec![];
     let mut behaviors: HashMap<Entity, BehaviorList> = HashMap::new();
-    behaviors.insert(entity, vec![(HashMap::new(), behaviors::do_nothing())]);
+    behaviors.insert(entity, vec![behaviors::do_nothing()]);
 
     let mut knowledges: HashMap<Entity, Knowledge> = HashMap::new();
     knowledges.insert(
@@ -99,6 +101,8 @@ fn main() -> Result<(), String> {
         Knowledge {
             own_id: entity,
             target: None,
+            destination_x: 0.0,
+            destination_y: 0.0,
             map: Default::default(),
         },
     );
@@ -124,24 +128,23 @@ fn main() -> Result<(), String> {
 
             match entity_event.event_type {
                 MoveToPosition => {
-                    let mut move_task = registry
-                        .get::<&mut Movement>(entity_event.entity)
-                        .expect("Error getting Move component");
-                    let mut state = registry.get::<&mut State>(entity_event.entity).unwrap();
-                    state.state = MOVE;
-                    move_task.distance = 0.05;
-                    move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
-                    move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
+                    // dispatch MoveToBehavior for an entity
+                    let mut entity_behaviors = behaviors.get_mut(&entity_event.entity).unwrap();
+                    entity_behaviors.insert(0, behaviors::move_to());
+                    // add info to knowledge
+                    let mut knowledge = knowledges.get_mut(&entity_event.entity).unwrap();
+                    knowledge.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
+                    knowledge.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
                 }
                 EntityCommandType::ApproachTarget => {
-                    let mut move_task = registry
-                        .get::<&mut Movement>(entity_event.entity)
-                        .expect("Error getting Move component");
-                    let mut state = registry.get::<&mut State>(entity_event.entity).unwrap();
-                    state.state = MOVE;
-                    move_task.distance = entity_event.param["distance"].parse::<f32>().unwrap();
-                    move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
-                    move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
+                    // let mut move_task = registry
+                    //     .get::<&mut Movement>(entity_event.entity)
+                    //     .expect("Error getting Move component");
+                    // let mut state = registry.get::<&mut State>(entity_event.entity).unwrap();
+                    // state.state = MOVE;
+                    // move_task.distance = entity_event.param["distance"].parse::<f32>().unwrap();
+                    // move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
+                    // move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
                 }
             }
         }
