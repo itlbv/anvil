@@ -2,8 +2,10 @@ use crate::btree::BehaviorStatus::{Failure, Running, Success};
 use crate::btree::{BehaviorStatus, BehaviorTreeNode, Sequence};
 use crate::components::StateType::{IDLE, MOVE};
 use crate::components::{Food, Movement, Position, State};
+use crate::EntityCommandType::RemoveFromMap;
 use crate::{EntityCommand, Knowledge};
 use hecs::World as ComponentRegistry;
+use std::collections::HashMap;
 
 pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
     Box::new(DoNothing {})
@@ -13,7 +15,7 @@ pub fn find_food() -> Box<Sequence> {
     Box::new(Sequence::of(vec![
         FindNearestFood::new(),
         MoveToTarget::new(),
-        // pick up
+        PickUpTarget::new(),
         // consume
     ]))
 }
@@ -24,6 +26,41 @@ pub fn move_to_position() -> Box<dyn BehaviorTreeNode> {
 
 pub fn move_to_target() -> Box<dyn BehaviorTreeNode> {
     Box::new(MoveToTarget {})
+}
+
+struct PickUpTarget {}
+
+impl PickUpTarget {
+    fn new() -> Box<Self> {
+        Box::new(PickUpTarget {})
+    }
+}
+
+impl BehaviorTreeNode for PickUpTarget {
+    fn run(
+        &mut self,
+        knowledge: &mut Knowledge,
+        entity_commands: &mut Vec<EntityCommand>,
+        _: &mut ComponentRegistry,
+    ) -> BehaviorStatus {
+        // if no target is set, fail
+        if knowledge.target.is_none() {
+            println!("Target is not set, cannot execute PickUp!");
+            return Failure;
+        }
+
+        // add target to inventory
+        knowledge.inventory.push(knowledge.target.unwrap());
+
+        // dispatch command to remove entity from map
+        entity_commands.push(EntityCommand {
+            entity: knowledge.target.unwrap(),
+            event_type: RemoveFromMap,
+            param: HashMap::new(),
+        });
+
+        Success
+    }
 }
 
 struct DoNothing {}
@@ -75,7 +112,10 @@ impl BehaviorTreeNode for FindNearestFood {
 
         // set target
         match nearest_food {
-            None => Failure,
+            None => {
+                println!("Can't find food!");
+                Failure
+            }
             Some(target_entity) => {
                 knowledge.target = Option::from(target_entity);
                 println!("Finished finding food");
@@ -135,12 +175,13 @@ impl BehaviorTreeNode for MoveToTarget {
     fn run(
         &mut self,
         knowledge: &mut Knowledge,
-        entity_commands: &mut Vec<EntityCommand>,
+        _: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         // check if target is set
         if knowledge.target.is_none() {
-            println!("Target is not set, cannot execute MoveToEntity!")
+            println!("Target is not set, cannot execute MoveToEntity!");
+            return Failure;
         }
 
         let own_pos = registry.get::<&Position>(knowledge.own_id).unwrap();

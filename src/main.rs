@@ -30,7 +30,7 @@ struct Properties {
 #[derive(PartialEq)]
 enum EntityCommandType {
     MoveToPosition,
-    ApproachTarget,
+    RemoveFromMap,
 }
 
 struct EntityCommand {
@@ -44,6 +44,7 @@ struct Knowledge {
     target: Option<Entity>,
     destination_x: f32,
     destination_y: f32,
+    inventory: Vec<Entity>,
     map: HashMap<String, String>,
 }
 
@@ -103,6 +104,7 @@ fn main() -> Result<(), String> {
             target: None,
             destination_x: 0.0,
             destination_y: 0.0,
+            inventory: vec![],
             map: Default::default(),
         },
     );
@@ -136,15 +138,8 @@ fn main() -> Result<(), String> {
                     knowledge.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
                     knowledge.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
                 }
-                EntityCommandType::ApproachTarget => {
-                    // let mut move_task = registry
-                    //     .get::<&mut Movement>(entity_event.entity)
-                    //     .expect("Error getting Move component");
-                    // let mut state = registry.get::<&mut State>(entity_event.entity).unwrap();
-                    // state.state = MOVE;
-                    // move_task.distance = entity_event.param["distance"].parse::<f32>().unwrap();
-                    // move_task.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
-                    // move_task.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
+                EntityCommandType::RemoveFromMap => {
+                    registry.remove_one::<Position>(entity_event.entity);
                 }
             }
         }

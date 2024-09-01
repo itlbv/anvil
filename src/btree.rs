@@ -48,6 +48,7 @@ impl BehaviorTreeNode for Sequence {
                 Failure => return Failure,
                 Success => {
                     i += 1;
+                    self.running_behavior_idx = i as i32
                 }
                 Running => {
                     self.running_behavior_idx = i as i32;
