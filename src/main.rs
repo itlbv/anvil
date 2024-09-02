@@ -1,6 +1,7 @@
 mod behaviors;
 mod btree;
 mod components;
+mod entity_commands;
 mod input_controller;
 mod systems;
 mod util;
@@ -9,34 +10,24 @@ mod window;
 use crate::btree::BehaviorTreeNode;
 use crate::components::StateType::{IDLE, MOVE};
 use crate::components::{Food, Hunger, Movement, Position, Shape, State, StateType};
+use crate::entity_commands::process_entity_commands;
+use crate::entity_commands::EntityCommand;
 use crate::input_controller::InputController;
 use crate::systems::{choose_behaviors, draw, hunger, movement, run_behaviors};
 use crate::window::Window;
-use crate::EntityCommandType::MoveToPosition;
 use hecs::Entity;
-use hecs::World as ComponentRegistry;
 use rand::Rng;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{Duration, Instant};
+
+use hecs::World as ComponentRegistry;
 
 type BehaviorList = Vec<Box<dyn BehaviorTreeNode>>;
 
 struct Properties {
     quit: bool,
     selected_entity: Option<Entity>,
-}
-
-#[derive(PartialEq)]
-enum EntityCommandType {
-    MoveToPosition,
-    RemoveFromMap,
-}
-
-struct EntityCommand {
-    entity: Entity,
-    event_type: EntityCommandType,
-    param: HashMap<String, String>,
 }
 
 struct Knowledge {
@@ -105,26 +96,12 @@ fn main() -> Result<(), String> {
         // input
         input_controller.update(&mut properties, &mut entity_commands, &mut registry);
 
-        // process entity commands
-        while !entity_commands.is_empty() {
-            // break;
-            let entity_event = entity_commands.pop().unwrap();
-
-            match entity_event.event_type {
-                MoveToPosition => {
-                    // dispatch MoveToBehavior for an entity
-                    let mut entity_behaviors = behaviors.get_mut(&entity_event.entity).unwrap();
-                    entity_behaviors.insert(0, behaviors::move_to_position());
-                    // add info to knowledge
-                    let mut knowledge = knowledges.get_mut(&entity_event.entity).unwrap();
-                    knowledge.destination_x = entity_event.param["x"].parse::<f32>().unwrap();
-                    knowledge.destination_y = entity_event.param["y"].parse::<f32>().unwrap();
-                }
-                EntityCommandType::RemoveFromMap => {
-                    registry.remove_one::<Position>(entity_event.entity);
-                }
-            }
-        }
+        process_entity_commands(
+            &mut entity_commands,
+            &mut knowledges,
+            &mut behaviors,
+            &mut registry,
+        );
 
         if instant - behavior_last_updated > Duration::from_secs(10) {
             choose_behaviors(

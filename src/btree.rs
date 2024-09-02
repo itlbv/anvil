@@ -1,5 +1,7 @@
 use crate::btree::BehaviorStatus::{Failure, Running, Success};
-use crate::{EntityCommand, Knowledge};
+use crate::entity_commands::EntityCommand;
+use crate::Knowledge;
+
 use hecs::World as ComponentRegistry;
 
 pub enum BehaviorStatus {

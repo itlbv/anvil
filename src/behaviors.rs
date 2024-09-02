@@ -2,8 +2,9 @@ use crate::btree::BehaviorStatus::{Failure, Running, Success};
 use crate::btree::{BehaviorStatus, BehaviorTreeNode, Sequence};
 use crate::components::StateType::{IDLE, MOVE};
 use crate::components::{Food, Movement, Position, State};
-use crate::EntityCommandType::RemoveFromMap;
-use crate::{EntityCommand, Knowledge};
+use crate::entity_commands::EntityCommand;
+use crate::entity_commands::EntityCommandType::RemoveFromMap;
+use crate::Knowledge;
 use hecs::World as ComponentRegistry;
 use std::collections::HashMap;
 
