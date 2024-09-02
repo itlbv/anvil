@@ -11,13 +11,22 @@ pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
     Box::new(DoNothing {})
 }
 
+pub fn build_house() -> Box<Sequence> {
+    Sequence::of(vec![
+        // find and reserve place
+        // gather resources
+        // move to position
+        // build
+    ])
+}
+
 pub fn find_food() -> Box<Sequence> {
-    Box::new(Sequence::of(vec![
+    Sequence::of(vec![
         FindNearestFood::new(),
         MoveToTarget::new(),
         PickUpTarget::new(),
         // consume
-    ]))
+    ])
 }
 
 pub fn move_to_position() -> Box<dyn BehaviorTreeNode> {

@@ -25,11 +25,11 @@ pub struct Sequence {
 }
 
 impl Sequence {
-    pub fn of(children: Vec<Box<dyn BehaviorTreeNode>>) -> Self {
-        Self {
+    pub fn of(children: Vec<Box<dyn BehaviorTreeNode>>) -> Box<Self> {
+        Box::new(Self {
             children,
             running_behavior_idx: -1,
-        }
+        })
     }
 }
 
@@ -50,7 +50,7 @@ impl BehaviorTreeNode for Sequence {
                 Failure => return Failure,
                 Success => {
                     i += 1;
-                    self.running_behavior_idx = i as i32
+                    self.running_behavior_idx = i as i32;
                 }
                 Running => {
                     self.running_behavior_idx = i as i32;
