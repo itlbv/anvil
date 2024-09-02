@@ -4,9 +4,8 @@ use crate::components::StateType::{IDLE, MOVE};
 use crate::components::{Food, Movement, Position, State};
 use crate::entity_commands::EntityCommand;
 use crate::entity_commands::EntityCommandType::RemoveFromMap;
-use crate::Knowledge;
+use crate::{entity_commands, Knowledge};
 use hecs::World as ComponentRegistry;
-use std::collections::HashMap;
 
 pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
     Box::new(DoNothing {})
@@ -42,7 +41,7 @@ impl BehaviorTreeNode for PickUpTarget {
         &mut self,
         knowledge: &mut Knowledge,
         entity_commands: &mut Vec<EntityCommand>,
-        _: &mut ComponentRegistry,
+        _registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         // if no target is set, fail
         if knowledge.target.is_none() {
@@ -54,11 +53,11 @@ impl BehaviorTreeNode for PickUpTarget {
         knowledge.inventory.push(knowledge.target.unwrap());
 
         // dispatch command to remove entity from map
-        entity_commands.push(EntityCommand {
-            entity: knowledge.target.unwrap(),
-            event_type: RemoveFromMap,
-            param: HashMap::new(),
-        });
+        entity_commands::push_new_command(
+            entity_commands,
+            knowledge.target.unwrap(),
+            RemoveFromMap,
+        );
 
         Success
     }
@@ -69,9 +68,9 @@ struct DoNothing {}
 impl BehaviorTreeNode for DoNothing {
     fn run(
         &mut self,
-        _knowledge: &mut Knowledge,
-        _entity_commands: &mut Vec<EntityCommand>,
-        _registry: &mut ComponentRegistry,
+        _: &mut Knowledge,
+        _: &mut Vec<EntityCommand>,
+        _: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         Running
     }
@@ -89,7 +88,7 @@ impl BehaviorTreeNode for FindNearestFood {
     fn run(
         &mut self,
         knowledge: &mut Knowledge,
-        entity_commands: &mut Vec<EntityCommand>,
+        _entity_commands: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         // find own position
@@ -138,7 +137,7 @@ impl BehaviorTreeNode for MoveToPosition {
     fn run(
         &mut self,
         knowledge: &mut Knowledge,
-        entity_commands: &mut Vec<EntityCommand>,
+        _entity_commands: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         let own_pos = registry.get::<&Position>(knowledge.own_id).unwrap();
@@ -176,7 +175,7 @@ impl BehaviorTreeNode for MoveToTarget {
     fn run(
         &mut self,
         knowledge: &mut Knowledge,
-        _: &mut Vec<EntityCommand>,
+        _entity_commands: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         // check if target is set

@@ -1,6 +1,6 @@
 use crate::entity_commands::EntityCommand;
 use crate::entity_commands::EntityCommandType::MoveToPosition;
-use crate::{util, Position, Properties};
+use crate::{entity_commands, util, Position, Properties};
 use hecs::World as ComponentRegistry;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -80,15 +80,16 @@ fn right_mouse_click(
         Some(entity) => {
             let x_world = util::screen_to_world(x_screen, 50);
             let y_world = util::screen_to_world(y_screen, 50);
-            entity_commands.push(EntityCommand {
+            entity_commands::push_new_command_with_param(
+                entity_commands,
                 entity,
-                event_type: MoveToPosition,
-                param: [
+                MoveToPosition,
+                [
                     (String::from("x"), x_world.to_string()),
                     (String::from("y"), y_world.to_string()),
                 ]
                 .into(),
-            })
+            );
         }
     }
 }
