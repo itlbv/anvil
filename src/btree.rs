@@ -19,6 +19,36 @@ pub trait BehaviorTreeNode {
     ) -> BehaviorStatus;
 }
 
+pub struct DoUntil {
+    condition: Box<dyn BehaviorTreeNode>,
+    action: Box<dyn BehaviorTreeNode>,
+}
+
+impl DoUntil {
+    pub fn new(
+        condition: Box<dyn BehaviorTreeNode>,
+        action: Box<dyn BehaviorTreeNode>,
+    ) -> Box<Self> {
+        Box::new(Self { condition, action })
+    }
+}
+
+impl BehaviorTreeNode for DoUntil {
+    fn run(
+        &mut self,
+        knowledge: &mut Knowledge,
+        entity_commands: &mut Vec<EntityCommand>,
+        registry: &mut ComponentRegistry,
+    ) -> BehaviorStatus {
+        let condition_status = self.condition.run(knowledge, entity_commands, registry);
+        match condition_status {
+            Success => Success,
+            Running => Running,
+            Failure => self.action.run(knowledge, entity_commands, registry),
+        }
+    }
+}
+
 pub struct Sequence {
     children: Vec<Box<dyn BehaviorTreeNode>>,
     running_behavior_idx: i32,
