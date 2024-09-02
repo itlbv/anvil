@@ -48,20 +48,6 @@ struct Knowledge {
     map: HashMap<String, String>,
 }
 
-trait EntityTask {
-    fn run(&mut self, entity: Entity, world: &mut ComponentRegistry);
-}
-
-struct MoveTask {}
-
-impl EntityTask for MoveTask {
-    fn run(&mut self, entity: Entity, world: &mut ComponentRegistry) {
-        // check if close to target already
-
-        // when task finished tell to continue behavior
-    }
-}
-
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
 
@@ -108,10 +94,6 @@ fn main() -> Result<(), String> {
             map: Default::default(),
         },
     );
-
-    // entity tasks
-    let mut entity_tasks: HashMap<Entity, Vec<Box<dyn EntityTask>>> = HashMap::new();
-    //
 
     let mut instant = Instant::now();
     let mut behavior_last_updated = Instant::now();
