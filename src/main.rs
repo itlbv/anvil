@@ -3,6 +3,7 @@ mod btree;
 mod components;
 mod entity_commands;
 mod input_controller;
+mod map;
 mod systems;
 mod util;
 mod window;
@@ -13,7 +14,7 @@ use crate::components::{Food, Hunger, Movement, Position, Shape, State, StateTyp
 use crate::entity_commands::process_entity_commands;
 use crate::entity_commands::EntityCommand;
 use crate::input_controller::InputController;
-use crate::systems::{choose_behaviors, draw, hunger, movement, run_behaviors};
+use crate::systems::{choose_behaviors, hunger, movement, render_frame, run_behaviors};
 use crate::window::Window;
 use hecs::Entity;
 use rand::Rng;
@@ -21,6 +22,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{Duration, Instant};
 
+use crate::map::Map;
 use hecs::World as ComponentRegistry;
 
 type BehaviorList = Vec<Box<dyn BehaviorTreeNode>>;
@@ -49,6 +51,8 @@ fn main() -> Result<(), String> {
         quit: false,
         selected_entity: None,
     };
+
+    let mut map = Map::new(100, 100);
 
     let mut registry = ComponentRegistry::new();
 
@@ -121,7 +125,7 @@ fn main() -> Result<(), String> {
         movement(&mut registry);
         hunger(instant, &mut registry);
 
-        draw(&mut window, &properties, &mut registry);
+        render_frame(&mut window, &properties, &map, &mut registry);
 
         std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
         instant = Instant::now();
