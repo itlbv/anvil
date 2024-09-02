@@ -1,5 +1,5 @@
 use crate::btree::BehaviorStatus::{Failure, Running, Success};
-use crate::btree::{BehaviorStatus, BehaviorTreeNode, Sequence};
+use crate::btree::{BehaviorStatus, BehaviorTreeNode, DoUntil, Sequence};
 use crate::components::StateType::{IDLE, MOVE};
 use crate::components::{Food, Movement, Position, State};
 use crate::entity_commands::EntityCommand;
@@ -16,12 +16,40 @@ pub fn build_house() -> Box<Sequence> {
     Sequence::of(vec![
         // choose recipe
         ChooseRecipe::new(),
-        // DoUntil(HasAllForRecipe(), FindIngredientsForRecipeSequence())
-        FindItem::new(),
         // find and reserve place
+        DoUntil::new(HasAllInRecipe::new(), collect_items_in_recipe()),
         // gather resources
         // move to position
         // build
+    ])
+}
+
+struct HasAllInRecipe {}
+
+impl HasAllInRecipe {
+    fn new() -> Box<Self> {
+        Box::new(HasAllInRecipe {})
+    }
+}
+
+impl BehaviorTreeNode for HasAllInRecipe {
+    fn run(
+        &mut self,
+        knowledge: &mut Knowledge,
+        entity_commands: &mut Vec<EntityCommand>,
+        registry: &mut ComponentRegistry,
+    ) -> BehaviorStatus {
+        todo!()
+    }
+}
+
+pub fn collect_items_in_recipe() -> Box<Sequence> {
+    Sequence::of(vec![
+        FindItem::new(),
+        // FindNearestFood::new(),
+        // MoveToTarget::new(),
+        // PickUpTargetToInventory::new(),
+        // consume
     ])
 }
 
