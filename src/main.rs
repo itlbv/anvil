@@ -18,6 +18,7 @@ use crate::systems::{choose_behaviors, hunger, movement, render_frame, run_behav
 use crate::window::Window;
 use hecs::Entity;
 use rand::Rng;
+use std::any::TypeId;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{Duration, Instant};
@@ -33,11 +34,16 @@ struct Properties {
     draw_map_grid: bool,
 }
 
+struct Recipe {
+    ingredients: HashMap<TypeId, usize>,
+}
+
 struct Knowledge {
     own_id: Entity,
     target: Option<Entity>,
     destination_x: f32,
     destination_y: f32,
+    recipe: Option<Recipe>,
     inventory: Vec<Entity>,
     map: HashMap<String, String>,
 }
@@ -77,7 +83,8 @@ fn main() -> Result<(), String> {
 
     let mut entity_commands: Vec<EntityCommand> = vec![];
     let mut behaviors: HashMap<Entity, BehaviorList> = HashMap::new();
-    behaviors.insert(entity, vec![behaviors::do_nothing()]);
+    // behaviors.insert(entity, vec![behaviors::do_nothing()]);
+    behaviors.insert(entity, vec![behaviors::build_house()]);
 
     let mut knowledges: HashMap<Entity, Knowledge> = HashMap::new();
     knowledges.insert(
@@ -87,6 +94,7 @@ fn main() -> Result<(), String> {
             target: None,
             destination_x: 0.0,
             destination_y: 0.0,
+            recipe: Option::None,
             inventory: vec![],
             map: Default::default(),
         },
@@ -109,15 +117,16 @@ fn main() -> Result<(), String> {
             &mut registry,
         );
 
-        if instant - behavior_last_updated > Duration::from_secs(10) {
-            choose_behaviors(
-                &mut behaviors,
-                &mut knowledges,
-                &mut entity_commands,
-                &mut registry,
-            );
-            behavior_last_updated = Instant::now();
-        }
+        // if instant - behavior_last_updated > Duration::from_secs(10) {
+        //     choose_behaviors(
+        //         &mut behaviors,
+        //         &mut knowledges,
+        //         &mut entity_commands,
+        //         &mut registry,
+        //     );
+        //     behavior_last_updated = Instant::now();
+        // }
+
         run_behaviors(
             &mut behaviors,
             &mut knowledges,
