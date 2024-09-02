@@ -3,7 +3,7 @@ use std::any::TypeId;
 use std::collections::HashMap;
 
 pub struct Recipe {
-    ingredients: HashMap<TypeId, usize>,
+    pub(crate) ingredients: HashMap<TypeId, usize>,
 }
 
 pub fn house() -> Recipe {

@@ -4,10 +4,9 @@ use crate::components::StateType::{IDLE, MOVE};
 use crate::components::{Food, Movement, Position, State};
 use crate::entity_commands::EntityCommand;
 use crate::entity_commands::EntityCommandType::RemoveFromMap;
-use crate::{entity_commands, recipes, Knowledge, Recipe};
+use crate::{entity_commands, recipes, Knowledge};
 use hecs::{Component, World as ComponentRegistry};
 use std::any::TypeId;
-use std::collections::HashMap;
 
 pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
     Box::new(DoNothing {})

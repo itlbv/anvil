@@ -11,10 +11,11 @@ mod window;
 
 use crate::btree::BehaviorTreeNode;
 use crate::components::StateType::{IDLE, MOVE};
-use crate::components::{Food, Hunger, Movement, Position, Shape, State, StateType};
+use crate::components::{Food, Hunger, Movement, Position, Shape, State, StateType, Stone, Wood};
 use crate::entity_commands::process_entity_commands;
 use crate::entity_commands::EntityCommand;
 use crate::input_controller::InputController;
+use crate::recipes::Recipe;
 use crate::systems::{choose_behaviors, hunger, movement, render_frame, run_behaviors};
 use crate::window::Window;
 use hecs::Entity;
@@ -57,21 +58,44 @@ fn main() -> Result<(), String> {
         draw_map_grid: true,
     };
 
-    let mut map = Map::new(10, 10);
+    let mut map = Map::new(24, 16);
 
     let mut registry = ComponentRegistry::new();
 
     let mut rand = rand::thread_rng();
     let food_to_spawn = (0..6).map(|_| {
-        let pos = Position::new(rand.gen_range(2..10) as f32, rand.gen_range(2..10) as f32);
+        let pos = Position::new(
+            rand.gen_range(2..10) as f32 + 0.5,
+            rand.gen_range(2..10) as f32 + 0.5,
+        );
         let shape = Shape::new(0.2, 0.2, (150, 40, 40, 255));
         let food = Food {};
         (pos, shape, food)
     });
     registry.spawn_batch(food_to_spawn);
 
+    let wood_to_spawn = (0..3).map(|_| {
+        let pos = Position::new(
+            rand.gen_range(2..10) as f32 + 0.5,
+            rand.gen_range(2..10) as f32 + 0.5,
+        );
+        let shape = Shape::new(0.2, 0.2, (170, 70, 0, 255));
+        (pos, shape, Wood {})
+    });
+    registry.spawn_batch(wood_to_spawn);
+
+    let stone_to_spawn = (0..3).map(|_| {
+        let pos = Position::new(
+            rand.gen_range(2..10) as f32 + 0.5,
+            rand.gen_range(2..10) as f32 + 0.5,
+        );
+        let shape = Shape::new(0.2, 0.2, (170, 170, 170, 255));
+        (pos, shape, Stone {})
+    });
+    registry.spawn_batch(stone_to_spawn);
+
     let entity = registry.spawn((
-        Position::new(1., 1.),
+        Position::new(1.5, 1.5),
         Shape::new(0.4, 0.4, (150, 150, 150, 150)),
         Hunger::new(),
         Movement::new(),
