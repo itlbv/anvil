@@ -4,6 +4,7 @@ mod components;
 mod entity_commands;
 mod input_controller;
 mod map;
+mod recipes;
 mod systems;
 mod util;
 mod window;
@@ -32,10 +33,6 @@ struct Properties {
     quit: bool,
     selected_entity: Option<Entity>,
     draw_map_grid: bool,
-}
-
-struct Recipe {
-    ingredients: HashMap<TypeId, usize>,
 }
 
 struct Knowledge {

@@ -65,8 +65,5 @@ impl Movement {
 }
 
 pub struct Food {}
-impl Food {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
+pub struct Stone {}
+pub struct Wood {}

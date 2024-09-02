@@ -4,8 +4,8 @@ use crate::components::StateType::{IDLE, MOVE};
 use crate::components::{Food, Movement, Position, State};
 use crate::entity_commands::EntityCommand;
 use crate::entity_commands::EntityCommandType::RemoveFromMap;
-use crate::{entity_commands, Knowledge, Recipe};
-use hecs::{Component, TypeInfo, World as ComponentRegistry};
+use crate::{entity_commands, recipes, Knowledge, Recipe};
+use hecs::{Component, World as ComponentRegistry};
 use std::any::TypeId;
 use std::collections::HashMap;
 
@@ -41,9 +41,7 @@ impl BehaviorTreeNode for ChooseRecipe {
         entity_commands: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
-        let mut map = HashMap::new();
-        map.insert(TypeId::of::<Food>(), 2);
-        knowledge.recipe = Option::from(Recipe { ingredients: map });
+        knowledge.recipe = Option::from(recipes::house());
         Success
     }
 }
