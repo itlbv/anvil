@@ -30,6 +30,7 @@ type BehaviorList = Vec<Box<dyn BehaviorTreeNode>>;
 struct Properties {
     quit: bool,
     selected_entity: Option<Entity>,
+    draw_map_grid: bool,
 }
 
 struct Knowledge {
@@ -50,9 +51,10 @@ fn main() -> Result<(), String> {
     let mut properties = Properties {
         quit: false,
         selected_entity: None,
+        draw_map_grid: true,
     };
 
-    let mut map = Map::new(100, 100);
+    let mut map = Map::new(10, 10);
 
     let mut registry = ComponentRegistry::new();
 

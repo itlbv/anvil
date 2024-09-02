@@ -1,9 +1,9 @@
 pub struct MapNode {}
 
 pub struct Map {
+    pub width: u32,
+    pub height: u32,
     nodes: Vec<MapNode>,
-    width: u32,
-    height: u32,
 }
 
 impl Map {

@@ -60,6 +60,20 @@ impl Window {
             .expect("Error drawing rectangle.");
     }
 
+    pub fn draw_line(&mut self, start: (f32, f32), end: (f32, f32), color: (u8, u8, u8, u8)) {
+        self.sdl_canvas
+            .set_draw_color(Color::RGBA(color.0, color.1, color.2, color.3));
+
+        let start_x = util::world_to_screen(start.0, 50);
+        let start_y = util::world_to_screen(start.1, 50);
+        let end_x = util::world_to_screen(end.0, 50);
+        let end_y = util::world_to_screen(end.1, 50);
+
+        self.sdl_canvas
+            .draw_line(Point::new(start_x, start_y), Point::new(end_x, end_y))
+            .expect("TODO: panic message");
+    }
+
     pub fn draw_dot(&mut self, x_world: f32, y_world: f32, color: (u8, u8, u8, u8)) {
         self.sdl_canvas
             .set_draw_color(Color::RGBA(color.0, color.1, color.2, color.3));

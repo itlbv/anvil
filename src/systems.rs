@@ -3,6 +3,7 @@ use crate::btree::{BehaviorStatus, BehaviorTreeNode};
 use crate::components::StateType::MOVE;
 use crate::components::{Hunger, Movement, Position, Shape, State};
 use crate::entity_commands::EntityCommand;
+use crate::map::Map;
 use crate::window::Window;
 use crate::{behaviors, BehaviorList, Knowledge, Properties};
 use hecs::Entity;
@@ -85,9 +86,45 @@ pub fn hunger(instant: Instant, registry: &mut ComponentRegistry) {
     }
 }
 
-pub fn draw(window: &mut Window, properties: &Properties, registry: &mut ComponentRegistry) {
+pub fn render_frame(
+    window: &mut Window,
+    properties: &Properties,
+    map: &Map,
+    registry: &mut ComponentRegistry,
+) {
     window.start_frame();
 
+    render_map(window, properties, map);
+    render_entites(window, properties, registry);
+
+    window.present_frame();
+}
+
+fn render_map(window: &mut Window, properties: &Properties, map: &Map) {
+    for map_y in 0..map.height {
+        for map_x in 0..map.width {
+            window.draw_rect(map_x as f32, map_y as f32, 1., 1., (100, 100, 100, 100))
+        }
+    }
+
+    if properties.draw_map_grid {
+        for x in 0..=map.width {
+            // vertical lines
+            window.draw_line(
+                (x as f32, 0.),
+                (x as f32, map.height as f32),
+                (0, 0, 0, 255),
+            );
+        }
+
+        for y in 0..=map.height {
+            // horizontal lines
+            window.draw_line((0., y as f32), (map.width as f32, y as f32), (0, 0, 0, 255));
+        }
+    }
+}
+
+fn render_entites(window: &mut Window, properties: &Properties, registry: &mut ComponentRegistry) {
     for (id, (pos, shape)) in registry.query_mut::<(&Position, &Shape)>() {
         window.draw_rect(
             pos.x - shape.width / 2.,
@@ -108,6 +145,4 @@ pub fn draw(window: &mut Window, properties: &Properties, registry: &mut Compone
             }
         }
     }
-
-    window.present_frame();
 }
