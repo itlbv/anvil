@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use std::time::Instant;
 
 #[derive(PartialEq)]
@@ -64,6 +65,12 @@ impl Movement {
     }
 }
 
-pub struct Food {}
-pub struct Stone {}
-pub struct Wood {}
+pub struct Food {
+    pub type_id: TypeId,
+}
+pub struct Stone {
+    pub type_id: TypeId,
+}
+pub struct Wood {
+    pub type_id: TypeId,
+}

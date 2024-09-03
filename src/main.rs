@@ -36,14 +36,25 @@ struct Properties {
     draw_map_grid: bool,
 }
 
+struct EntityWithType {
+    type_id: TypeId,
+    entity: Entity,
+}
+
+impl EntityWithType {
+    pub fn new(type_id: TypeId, entity: Entity) -> Self {
+        Self { type_id, entity }
+    }
+}
+
 struct Knowledge {
     own_id: Entity,
-    target: Option<Entity>,
+    target: Option<EntityWithType>,
     destination_x: f32,
     destination_y: f32,
     recipe: Option<Recipe>,
-    inventory: Vec<Entity>,
-    map: HashMap<String, String>,
+    inventory: HashMap<TypeId, Vec<Entity>>,
+    param: HashMap<String, String>,
 }
 
 fn main() -> Result<(), String> {
@@ -69,7 +80,9 @@ fn main() -> Result<(), String> {
             rand.gen_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (150, 40, 40, 255));
-        let food = Food {};
+        let food = Food {
+            type_id: TypeId::of::<Food>(),
+        };
         (pos, shape, food)
     });
     registry.spawn_batch(food_to_spawn);
@@ -80,7 +93,13 @@ fn main() -> Result<(), String> {
             rand.gen_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (170, 70, 0, 255));
-        (pos, shape, Wood {})
+        (
+            pos,
+            shape,
+            Wood {
+                type_id: TypeId::of::<Wood>(),
+            },
+        )
     });
     registry.spawn_batch(wood_to_spawn);
 
@@ -90,7 +109,13 @@ fn main() -> Result<(), String> {
             rand.gen_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (170, 170, 170, 255));
-        (pos, shape, Stone {})
+        (
+            pos,
+            shape,
+            Stone {
+                type_id: TypeId::of::<Stone>(),
+            },
+        )
     });
     registry.spawn_batch(stone_to_spawn);
 
@@ -116,8 +141,8 @@ fn main() -> Result<(), String> {
             destination_x: 0.0,
             destination_y: 0.0,
             recipe: Option::None,
-            inventory: vec![],
-            map: Default::default(),
+            inventory: HashMap::new(),
+            param: Default::default(),
         },
     );
 

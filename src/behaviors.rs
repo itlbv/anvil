@@ -4,9 +4,10 @@ use crate::components::StateType::{IDLE, MOVE};
 use crate::components::{Food, Movement, Position, State};
 use crate::entity_commands::EntityCommand;
 use crate::entity_commands::EntityCommandType::RemoveFromMap;
-use crate::{entity_commands, recipes, Knowledge};
-use hecs::{Component, World as ComponentRegistry};
+use crate::{entity_commands, recipes, EntityWithType, Knowledge};
+use hecs::{Component, Entity, World as ComponentRegistry};
 use std::any::TypeId;
+use std::collections::HashMap;
 
 pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
     Box::new(DoNothing {})
@@ -14,10 +15,9 @@ pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
 
 pub fn build_house() -> Box<Sequence> {
     Sequence::of(vec![
-        // choose recipe
         ChooseRecipe::new(),
         // find and reserve place
-        DoUntil::new(HasAllInRecipe::new(), collect_items_in_recipe()),
+        DoUntil::new(HasAllInRecipe::new(), collect_items_from_recipe()),
         // gather resources
         // move to position
         // build
@@ -35,22 +35,24 @@ impl HasAllInRecipe {
 impl BehaviorTreeNode for HasAllInRecipe {
     fn run(
         &mut self,
-        knowledge: &mut Knowledge,
-        entity_commands: &mut Vec<EntityCommand>,
-        registry: &mut ComponentRegistry,
+        _knowledge: &mut Knowledge,
+        _entity_commands: &mut Vec<EntityCommand>,
+        _registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
-        todo!()
+        println!("Has everything for recipe!");
+        Success
     }
 }
 
-pub fn collect_items_in_recipe() -> Box<Sequence> {
-    Sequence::of(vec![
-        FindItem::new(),
-        // FindNearestFood::new(),
-        // MoveToTarget::new(),
-        // PickUpTargetToInventory::new(),
-        // consume
-    ])
+pub fn collect_items_from_recipe() -> Box<dyn BehaviorTreeNode> {
+    DoUntil::new(
+        HasAllInRecipe::new(),
+        Sequence::of(vec![
+            FindItemFromRecipe::new(),
+            MoveToTarget::new(),
+            PickUpTargetToInventory::new(),
+        ]),
+    )
 }
 
 struct ChooseRecipe {}
@@ -65,51 +67,72 @@ impl BehaviorTreeNode for ChooseRecipe {
     fn run(
         &mut self,
         knowledge: &mut Knowledge,
-        entity_commands: &mut Vec<EntityCommand>,
-        registry: &mut ComponentRegistry,
+        _: &mut Vec<EntityCommand>,
+        _: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         knowledge.recipe = Option::from(recipes::house());
         Success
     }
 }
 
-struct FindItem {}
+struct FindItemFromRecipe {}
 
-impl FindItem {
+impl FindItemFromRecipe {
     fn new() -> Box<Self> {
-        Box::new(FindItem {})
+        Box::new(FindItemFromRecipe {})
     }
 }
 
-impl BehaviorTreeNode for FindItem {
+impl BehaviorTreeNode for FindItemFromRecipe {
     fn run(
         &mut self,
         knowledge: &mut Knowledge,
-        entity_commands: &mut Vec<EntityCommand>,
+        _: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         match &knowledge.recipe {
             None => {
-                println!("No recipe set!");
+                println!("No recipe set! FindItemFromRecipe failed");
                 Failure
             }
             Some(recipe) => {
-                for ingredient in &recipe.ingredients {
-                    let type_id = ingredient.0.to_owned();
-                    if type_id == TypeId::of::<Food>() {
-                        find_item::<Food>(registry);
+                for (item_type_id, count) in &recipe.ingredients {
+                    if knowledge.inventory.get(item_type_id).is_none()
+                        || knowledge.inventory.get(item_type_id).unwrap().len() < *count
+                    {
+                        return match find_item_by_type_id(*item_type_id, registry) {
+                            None => {
+                                println!("Can't find item from recipe!");
+                                Failure
+                            }
+                            Some(item) => {
+                                knowledge.target =
+                                    Option::from(EntityWithType::new(*item_type_id, item));
+                                Success
+                            }
+                        };
                     }
                 }
-                Success
+                println!("Shouldn't be reached in FindItemFromRecipe");
+                Failure
             }
         }
     }
 }
 
-fn find_item<T: Component>(registry: &mut ComponentRegistry) {
-    for (item_entity, item) in registry.query_mut::<&T>() {
-        println!("Found item");
+fn find_item_by_type_id(type_id: TypeId, registry: &mut ComponentRegistry) -> Option<Entity> {
+    if type_id == TypeId::of::<Food>() {
+        return find_item::<Food>(registry);
     }
+    None
+}
+
+fn find_item<T: Component>(registry: &mut ComponentRegistry) -> Option<Entity> {
+    for (entity, _) in registry.query_mut::<&T>() {
+        println!("Found item");
+        return Some(entity);
+    }
+    None
 }
 
 pub fn find_food() -> Box<Sequence> {
@@ -150,17 +173,34 @@ impl BehaviorTreeNode for PickUpTargetToInventory {
             return Failure;
         }
 
+        let target_with_type = knowledge.target.as_ref().unwrap();
+
         // add target to inventory
-        knowledge.inventory.push(knowledge.target.unwrap());
+        add_item_to_inventory(
+            &mut knowledge.inventory,
+            &target_with_type.type_id,
+            target_with_type.entity,
+        );
 
         // dispatch command to remove entity from map
         entity_commands::push_new_command(
             entity_commands,
-            knowledge.target.unwrap(),
+            knowledge.target.as_ref().unwrap().entity,
             RemoveFromMap,
         );
 
         Success
+    }
+}
+
+fn add_item_to_inventory(
+    inventory: &mut HashMap<TypeId, Vec<Entity>>,
+    type_id: &TypeId,
+    item: Entity,
+) {
+    match inventory.get_mut(type_id) {
+        None => {}
+        Some(_) => {}
     }
 }
 
@@ -201,13 +241,16 @@ impl BehaviorTreeNode for FindNearestFood {
         // find nearest food
         let mut nearest_food = None;
         let mut smallest_distance = f32::MAX;
-        for (food_entity, (_food, pos)) in registry.query_mut::<(&Food, &Position)>() {
+        for (food_entity, (food, pos)) in registry.query_mut::<(&Food, &Position)>() {
             let dist_x = (pos.x - own_pos_x).abs();
             let dist_y = (pos.y - own_pos_y).abs();
             let dist = dist_x.hypot(dist_y);
             if dist < smallest_distance {
                 smallest_distance = dist;
-                nearest_food = Option::from(food_entity);
+                nearest_food = Option::from(EntityWithType {
+                    type_id: food.type_id,
+                    entity: food_entity,
+                });
             }
         }
 
@@ -285,10 +328,10 @@ impl BehaviorTreeNode for MoveToTarget {
             return Failure;
         }
 
+        let target_entity = knowledge.target.as_ref().unwrap().entity;
+
         let own_pos = registry.get::<&Position>(knowledge.own_id).unwrap();
-        let target_pos = registry
-            .get::<&Position>(knowledge.target.unwrap())
-            .unwrap();
+        let target_pos = registry.get::<&Position>(target_entity).unwrap();
         let mut movement = registry.get::<&mut Movement>(knowledge.own_id).unwrap();
         let mut state = registry.get::<&mut State>(knowledge.own_id).unwrap();
 
