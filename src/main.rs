@@ -10,7 +10,7 @@ mod util;
 mod window;
 
 use crate::btree::BehaviorTreeNode;
-use crate::components::StateType::{IDLE, MOVE};
+use crate::components::StateType::{Idle, Move};
 use crate::components::{Food, Hunger, Movement, Position, Shape, State, StateType, Stone, Wood};
 use crate::entity_commands::process_entity_commands;
 use crate::entity_commands::EntityCommand;
@@ -124,7 +124,7 @@ fn main() -> Result<(), String> {
         Shape::new(0.4, 0.4, (150, 150, 150, 150)),
         Hunger::new(),
         Movement::new(),
-        State { state: IDLE },
+        State { state: Idle },
     ));
 
     let mut entity_commands: Vec<EntityCommand> = vec![];

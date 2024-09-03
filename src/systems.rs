@@ -1,6 +1,6 @@
 use crate::btree::BehaviorStatus::Running;
 use crate::btree::{BehaviorStatus, BehaviorTreeNode};
-use crate::components::StateType::MOVE;
+use crate::components::StateType::Move;
 use crate::components::{Hunger, Movement, Position, Shape, State};
 use crate::entity_commands::EntityCommand;
 use crate::map::Map;
@@ -59,7 +59,7 @@ pub fn movement(registry: &mut ComponentRegistry) {
     for (_, (pos, movement, state)) in
         registry.query_mut::<(&mut Position, &mut Movement, &State)>()
     {
-        if state.state != MOVE {
+        if state.state != Move {
             continue;
         }
 

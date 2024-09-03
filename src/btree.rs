@@ -22,6 +22,7 @@ pub trait BehaviorTreeNode {
 pub struct DoUntil {
     condition: Box<dyn BehaviorTreeNode>,
     action: Box<dyn BehaviorTreeNode>,
+    status_previous_run: Option<BehaviorStatus>,
 }
 
 impl DoUntil {
@@ -29,7 +30,11 @@ impl DoUntil {
         condition: Box<dyn BehaviorTreeNode>,
         action: Box<dyn BehaviorTreeNode>,
     ) -> Box<Self> {
-        Box::new(Self { condition, action })
+        Box::new(Self {
+            condition,
+            action,
+            status_previous_run: None,
+        })
     }
 }
 
@@ -40,11 +45,38 @@ impl BehaviorTreeNode for DoUntil {
         entity_commands: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
-        let condition_status = self.condition.run(knowledge, entity_commands, registry);
-        match condition_status {
-            Success => Success,
-            Running => Running,
-            Failure => self.action.run(knowledge, entity_commands, registry),
+        // if prev running status running, proceed to action
+        match self.status_previous_run.as_ref() {
+            None => {}
+            Some(status) => {
+                match status {
+                    Running => {
+                        // actions are still running, let them continue and return Running
+                        self.action.run(knowledge, entity_commands, registry);
+                        return Running;
+                    }
+                    _ => {}
+                    _ => {}
+                }
+            }
+        }
+
+        // run condition check
+        let status = self.condition.run(knowledge, entity_commands, registry);
+        match status {
+            Success => Success, // if condition success, return success
+            Failure => {
+                // if condition not success, run action, remember prev running status
+                self.status_previous_run =
+                    Option::from(self.action.run(knowledge, entity_commands, registry));
+                Failure
+            }
+            Running => {
+                // if condition not success, run action, remember prev running status
+                self.status_previous_run =
+                    Option::from(self.action.run(knowledge, entity_commands, registry));
+                Running
+            }
         }
     }
 }

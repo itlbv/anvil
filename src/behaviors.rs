@@ -1,7 +1,7 @@
 use crate::btree::BehaviorStatus::{Failure, Running, Success};
 use crate::btree::{BehaviorStatus, BehaviorTreeNode, DoUntil, Sequence};
-use crate::components::StateType::{IDLE, MOVE};
-use crate::components::{Food, Movement, Position, State};
+use crate::components::StateType::{Idle, Move};
+use crate::components::{Food, Movement, Position, State, Stone, Wood};
 use crate::entity_commands::EntityCommand;
 use crate::entity_commands::EntityCommandType::RemoveFromMap;
 use crate::{entity_commands, recipes, EntityWithType, Knowledge};
@@ -40,7 +40,7 @@ impl BehaviorTreeNode for HasAllInRecipe {
         _registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         println!("Has everything for recipe!");
-        Success
+        Failure
     }
 }
 
@@ -90,6 +90,7 @@ impl BehaviorTreeNode for FindItemFromRecipe {
         _: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
+        println!("FindItemFromRecipe");
         match &knowledge.recipe {
             None => {
                 println!("No recipe set! FindItemFromRecipe failed");
@@ -123,6 +124,10 @@ impl BehaviorTreeNode for FindItemFromRecipe {
 fn find_item_by_type_id(type_id: TypeId, registry: &mut ComponentRegistry) -> Option<Entity> {
     if type_id == TypeId::of::<Food>() {
         return find_item::<Food>(registry);
+    } else if type_id == TypeId::of::<Wood>() {
+        return find_item::<Wood>(registry);
+    } else if type_id == TypeId::of::<Stone>() {
+        return find_item::<Stone>(registry);
     }
     None
 }
@@ -167,9 +172,10 @@ impl BehaviorTreeNode for PickUpTargetToInventory {
         entity_commands: &mut Vec<EntityCommand>,
         _registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
+        println!("PickUpTargetToInventory");
         // if no target is set, fail
         if knowledge.target.is_none() {
-            println!("Target is not set, cannot execute PickUp!");
+            println!("Target is not set, cannot PickUpTargetToInventory!");
             return Failure;
         }
 
@@ -178,7 +184,7 @@ impl BehaviorTreeNode for PickUpTargetToInventory {
         // add target to inventory
         add_item_to_inventory(
             &mut knowledge.inventory,
-            &target_with_type.type_id,
+            target_with_type.type_id,
             target_with_type.entity,
         );
 
@@ -195,12 +201,16 @@ impl BehaviorTreeNode for PickUpTargetToInventory {
 
 fn add_item_to_inventory(
     inventory: &mut HashMap<TypeId, Vec<Entity>>,
-    type_id: &TypeId,
+    type_id: TypeId,
     item: Entity,
 ) {
-    match inventory.get_mut(type_id) {
-        None => {}
-        Some(_) => {}
+    match inventory.get_mut(&type_id) {
+        None => {
+            inventory.insert(type_id, vec![item]);
+        }
+        Some(entities) => {
+            entities.push(item);
+        }
     }
 }
 
@@ -292,13 +302,13 @@ impl BehaviorTreeNode for MoveToPosition {
         if (own_pos.x - knowledge.destination_x).abs() < movement.distance
             && (own_pos.y - knowledge.destination_y).abs() < movement.distance
         {
-            state.state = IDLE;
+            state.state = Idle;
             println!("Finished moving to position");
             return Success;
         }
 
         // start movement
-        state.state = MOVE;
+        state.state = Move;
         movement.destination_x = knowledge.destination_x;
         movement.destination_y = knowledge.destination_y;
         movement.distance = 0.1;
@@ -339,13 +349,13 @@ impl BehaviorTreeNode for MoveToTarget {
         if (own_pos.x - target_pos.x).abs() < movement.distance
             && (own_pos.y - target_pos.y).abs() < movement.distance
         {
-            state.state = IDLE;
+            state.state = Idle;
             println!("Finished moving to target");
             return Success;
         }
 
         // start movement
-        state.state = MOVE;
+        state.state = Move;
         movement.destination_x = target_pos.x;
         movement.destination_y = target_pos.y;
         movement.distance = 0.5;

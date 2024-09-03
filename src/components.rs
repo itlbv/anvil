@@ -3,8 +3,8 @@ use std::time::Instant;
 
 #[derive(PartialEq)]
 pub enum StateType {
-    IDLE,
-    MOVE,
+    Idle,
+    Move,
 }
 
 pub struct State {
