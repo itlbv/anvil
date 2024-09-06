@@ -20,7 +20,6 @@ pub fn build_house() -> Box<Sequence> {
             ChooseRecipe::new(),
             // find and reserve place
             collect_items_from_recipe(),
-            // gather resources
             // move to position
             // build
         ],
@@ -38,12 +37,29 @@ impl HasAllInRecipe {
 impl BehaviorTreeNode for HasAllInRecipe {
     fn run(
         &mut self,
-        _knowledge: &mut Knowledge,
+        knowledge: &mut Knowledge,
         _entity_commands: &mut Vec<EntityCommand>,
         _registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
-        println!("Has everything for recipe!");
-        Failure
+        println!("HasAllInRecipe check!");
+        match &knowledge.recipe {
+            None => {
+                println!("No recipe set! HasAllInRecipe failed");
+                Failure
+            }
+            Some(recipe) => {
+                for (item_type_id, count) in &recipe.ingredients {
+                    if knowledge.inventory.get(item_type_id).is_none()
+                        || knowledge.inventory.get(item_type_id).unwrap().len() < *count
+                    {
+                        println!("Some items from recipe not collected");
+                        return Failure;
+                    }
+                }
+                println!("Everything from recipe is collected");
+                Success // everything is collected
+            }
+        }
     }
 }
 
@@ -104,6 +120,7 @@ impl BehaviorTreeNode for FindItemFromRecipe {
             }
             Some(recipe) => {
                 for (item_type_id, count) in &recipe.ingredients {
+                    let item_type_name = get_type_name(*item_type_id);
                     if knowledge.inventory.get(item_type_id).is_none()
                         || knowledge.inventory.get(item_type_id).unwrap().len() < *count
                     {
@@ -121,11 +138,22 @@ impl BehaviorTreeNode for FindItemFromRecipe {
                         };
                     }
                 }
-                println!("Shouldn't be reached in FindItemFromRecipe");
-                Failure
+                println!("Probably all items are collected in FindItemFromRecipe");
+                Failure // no new items found so it should fail? if it is success, next moveTo behavior fails because target is not updated but target entity was despawned withouth position
             }
         }
     }
+}
+
+fn get_type_name(type_id: TypeId) -> String {
+    if type_id == TypeId::of::<Food>() {
+        return String::from("Food");
+    } else if type_id == TypeId::of::<Wood>() {
+        return String::from("Wood");
+    } else if type_id == TypeId::of::<Stone>() {
+        return String::from("Stone");
+    }
+    String::from("Unknown type")
 }
 
 fn find_item_by_type_id(type_id: TypeId, registry: &mut ComponentRegistry) -> Option<Entity> {
@@ -140,7 +168,8 @@ fn find_item_by_type_id(type_id: TypeId, registry: &mut ComponentRegistry) -> Op
 }
 
 fn find_item<T: Component>(registry: &mut ComponentRegistry) -> Option<Entity> {
-    for (entity, _) in registry.query_mut::<&T>() {
+    // find item with position
+    for (entity, (_, _)) in registry.query_mut::<(&T, &Position)>() {
         return Some(entity);
     }
     None

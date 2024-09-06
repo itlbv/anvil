@@ -113,7 +113,6 @@ impl BehaviorTreeNode for Sequence {
         entity_commands: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
-        println!("Running {} sequence", self.name);
         let mut i = 0;
         while i < self.children.len() {
             if self.running_behavior_idx >= 0 {

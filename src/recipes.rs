@@ -9,6 +9,6 @@ pub struct Recipe {
 pub fn house() -> Recipe {
     let mut ingredients = HashMap::new();
     ingredients.insert(TypeId::of::<Wood>(), 1);
-    ingredients.insert(TypeId::of::<Stone>(), 2);
+    ingredients.insert(TypeId::of::<Stone>(), 1);
     Recipe { ingredients }
 }
