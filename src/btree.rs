@@ -52,7 +52,8 @@ impl BehaviorTreeNode for DoUntil {
                 match status {
                     Running => {
                         // actions are still running, let them continue and return Running
-                        self.action.run(knowledge, entity_commands, registry);
+                        self.action_status =
+                            Option::from(self.action.run(knowledge, entity_commands, registry));
                         return Running;
                     }
                     Success => {
@@ -131,7 +132,8 @@ impl BehaviorTreeNode for Sequence {
                 }
             };
         }
-        println!("Sequence successful!");
+        println!("{} sequence successful!", self.name);
+        self.running_behavior_idx = 0; // reset idx to 0 to start anew
         Success
     }
 }
