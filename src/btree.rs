@@ -22,7 +22,7 @@ pub trait BehaviorTreeNode {
 pub struct DoUntil {
     condition: Box<dyn BehaviorTreeNode>,
     action: Box<dyn BehaviorTreeNode>,
-    status_previous_run: Option<BehaviorStatus>,
+    action_status: Option<BehaviorStatus>,
 }
 
 impl DoUntil {
@@ -33,7 +33,7 @@ impl DoUntil {
         Box::new(Self {
             condition,
             action,
-            status_previous_run: None,
+            action_status: None,
         })
     }
 }
@@ -46,7 +46,7 @@ impl BehaviorTreeNode for DoUntil {
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         // if prev running status running, proceed to action
-        match self.status_previous_run.as_ref() {
+        match self.action_status.as_ref() {
             None => {}
             Some(status) => {
                 match status {
@@ -55,25 +55,33 @@ impl BehaviorTreeNode for DoUntil {
                         self.action.run(knowledge, entity_commands, registry);
                         return Running;
                     }
-                    _ => {}
+                    Success => {
+                        println!("DoUntil action status is success")
+                    }
                     _ => {}
                 }
             }
         }
 
         // run condition check
-        let status = self.condition.run(knowledge, entity_commands, registry);
-        match status {
-            Success => Success, // if condition success, return success
+        let condition_status = self.condition.run(knowledge, entity_commands, registry);
+        match condition_status {
+            Success => {
+                // if condition success, return success
+                println!("DoUntil condition success!");
+                Success
+            }
             Failure => {
                 // if condition not success, run action, remember prev running status
-                self.status_previous_run =
+                println!("DoUntil condition failure! Trying actions again");
+                self.action_status =
                     Option::from(self.action.run(knowledge, entity_commands, registry));
-                Failure
+                Running
             }
             Running => {
                 // if condition not success, run action, remember prev running status
-                self.status_previous_run =
+                println!("DoUntil running! Running actions");
+                self.action_status =
                     Option::from(self.action.run(knowledge, entity_commands, registry));
                 Running
             }
@@ -82,13 +90,15 @@ impl BehaviorTreeNode for DoUntil {
 }
 
 pub struct Sequence {
+    name: String,
     children: Vec<Box<dyn BehaviorTreeNode>>,
     running_behavior_idx: i32,
 }
 
 impl Sequence {
-    pub fn of(children: Vec<Box<dyn BehaviorTreeNode>>) -> Box<Self> {
+    pub fn of(name: &str, children: Vec<Box<dyn BehaviorTreeNode>>) -> Box<Self> {
         Box::new(Self {
+            name: String::from(name),
             children,
             running_behavior_idx: -1,
         })
@@ -102,6 +112,7 @@ impl BehaviorTreeNode for Sequence {
         entity_commands: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
+        println!("Running {} sequence", self.name);
         let mut i = 0;
         while i < self.children.len() {
             if self.running_behavior_idx >= 0 {
@@ -120,6 +131,7 @@ impl BehaviorTreeNode for Sequence {
                 }
             };
         }
+        println!("Sequence successful!");
         Success
     }
 }

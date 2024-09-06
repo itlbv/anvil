@@ -14,14 +14,17 @@ pub fn do_nothing() -> Box<dyn BehaviorTreeNode> {
 }
 
 pub fn build_house() -> Box<Sequence> {
-    Sequence::of(vec![
-        ChooseRecipe::new(),
-        // find and reserve place
-        DoUntil::new(HasAllInRecipe::new(), collect_items_from_recipe()),
-        // gather resources
-        // move to position
-        // build
-    ])
+    Sequence::of(
+        "build_house",
+        vec![
+            ChooseRecipe::new(),
+            // find and reserve place
+            collect_items_from_recipe(),
+            // gather resources
+            // move to position
+            // build
+        ],
+    )
 }
 
 struct HasAllInRecipe {}
@@ -47,11 +50,14 @@ impl BehaviorTreeNode for HasAllInRecipe {
 pub fn collect_items_from_recipe() -> Box<dyn BehaviorTreeNode> {
     DoUntil::new(
         HasAllInRecipe::new(),
-        Sequence::of(vec![
-            FindItemFromRecipe::new(),
-            MoveToTarget::new(),
-            PickUpTargetToInventory::new(),
-        ]),
+        Sequence::of(
+            "collect_items_for_recipe",
+            vec![
+                FindItemFromRecipe::new(),
+                MoveToTarget::new(),
+                PickUpTargetToInventory::new(),
+            ],
+        ),
     )
 }
 
@@ -107,6 +113,7 @@ impl BehaviorTreeNode for FindItemFromRecipe {
                                 Failure
                             }
                             Some(item) => {
+                                println!("Found item, set target");
                                 knowledge.target =
                                     Option::from(EntityWithType::new(*item_type_id, item));
                                 Success
@@ -134,19 +141,21 @@ fn find_item_by_type_id(type_id: TypeId, registry: &mut ComponentRegistry) -> Op
 
 fn find_item<T: Component>(registry: &mut ComponentRegistry) -> Option<Entity> {
     for (entity, _) in registry.query_mut::<&T>() {
-        println!("Found item");
         return Some(entity);
     }
     None
 }
 
 pub fn find_food() -> Box<Sequence> {
-    Sequence::of(vec![
-        FindNearestFood::new(),
-        MoveToTarget::new(),
-        PickUpTargetToInventory::new(),
-        // consume
-    ])
+    Sequence::of(
+        "find_food",
+        vec![
+            FindNearestFood::new(),
+            MoveToTarget::new(),
+            PickUpTargetToInventory::new(),
+            // consume
+        ],
+    )
 }
 
 pub fn move_to_position() -> Box<dyn BehaviorTreeNode> {
@@ -334,7 +343,7 @@ impl BehaviorTreeNode for MoveToTarget {
     ) -> BehaviorStatus {
         // check if target is set
         if knowledge.target.is_none() {
-            println!("Target is not set, cannot execute MoveToEntity!");
+            println!("Target is not set, cannot execute MoveToTarget!");
             return Failure;
         }
 
