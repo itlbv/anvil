@@ -5,9 +5,13 @@ mod entity_commands;
 mod input_controller;
 mod map;
 mod recipes;
+mod rng;
+mod sim_loop;
 mod systems;
+mod time;
 mod util;
 mod window;
+mod world_hash;
 
 use crate::btree::BehaviorTreeNode;
 use crate::components::StateType::{Idle, Move};
@@ -16,6 +20,8 @@ use crate::entity_commands::process_entity_commands;
 use crate::entity_commands::EntityCommand;
 use crate::input_controller::InputController;
 use crate::recipes::Recipe;
+use crate::rng::rng_for_tick;
+use crate::rng::RngRun;
 use crate::systems::{choose_behaviors, hunger, movement, render_frame, run_behaviors};
 use crate::window::Window;
 use hecs::Entity;
@@ -73,7 +79,11 @@ fn main() -> Result<(), String> {
 
     let mut registry = ComponentRegistry::new();
 
-    let mut rand = rand::thread_rng();
+    let mut sim = sim_loop::SimLoop::new(60);
+    let run_seed = 0xDEADBEEFCAFEBABEu64; // replace with CLI arg/env for reproducibility
+    let run = RngRun::new(run_seed);
+
+    let mut rand = rng_for_tick(&run, 0, 42); // tick=0, stream=42 for "spawn"
     let food_to_spawn = (0..6).map(|_| {
         let pos = Position::new(
             rand.gen_range(2..10) as f32 + 0.5,
@@ -146,8 +156,8 @@ fn main() -> Result<(), String> {
         },
     );
 
-    let mut instant = Instant::now();
-    let mut behavior_last_updated = Instant::now();
+    let start_instant = Instant::now();
+    let mut sim_elapsed = Duration::ZERO;
     'main: loop {
         if properties.quit {
             break 'main;
@@ -156,36 +166,42 @@ fn main() -> Result<(), String> {
         // input
         input_controller.update(&mut properties, &mut entity_commands, &mut registry);
 
-        process_entity_commands(
-            &mut entity_commands,
-            &mut knowledges,
-            &mut behaviors,
-            &mut registry,
-        );
+        let steps = sim.begin_frame();
+        for _ in 0..steps {
+            let tick = sim.tick.0;
 
-        // if instant - behavior_last_updated > Duration::from_secs(10) {
-        //     choose_behaviors(
-        //         &mut behaviors,
-        //         &mut knowledges,
-        //         &mut entity_commands,
-        //         &mut registry,
-        //     );
-        //     behavior_last_updated = Instant::now();
-        // }
+            // deterministic RNG for this tick & domain "ai" (stream id = 1)
+            let mut rng_ai = rng_for_tick(&run, tick, 1);
 
-        run_behaviors(
-            &mut behaviors,
-            &mut knowledges,
-            &mut entity_commands,
-            &mut registry,
-        );
-        movement(&mut registry);
-        hunger(instant, &mut registry);
+            // --- your per-tick simulation systems ---
+            process_entity_commands(
+                &mut entity_commands,
+                &mut knowledges,
+                &mut behaviors,
+                &mut registry,
+            );
+
+            run_behaviors(
+                &mut behaviors,
+                &mut knowledges,
+                &mut entity_commands,
+                &mut registry,
+            );
+
+            movement(&mut registry);
+
+            // Prefer refactoring hunger to use fixed dt (see note below)
+            // hunger_fixed(sim.fixed.seconds, &mut registry);
+            // TEMP shim if you can't change signature yet:
+            sim_elapsed += Duration::from_secs_f32(sim.fixed.seconds);
+            let fake_now = start_instant.checked_add(sim_elapsed).unwrap();
+            hunger(fake_now, &mut registry);
+
+            // advance deterministic tick counter
+            sim.advance_tick();
+        }
 
         render_frame(&mut window, &properties, &map, &mut registry);
-
-        std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
-        instant = Instant::now();
     }
 
     Ok(())
