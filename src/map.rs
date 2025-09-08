@@ -17,7 +17,7 @@ impl Map {
 
     fn init_nodes(count: u32) -> Vec<MapNode> {
         let mut nodes = vec![];
-        for i in 0..count {
+        for _ in 0..count {
             nodes.push(MapNode {});
         }
         nodes

@@ -1,4 +1,4 @@
-use rand::{Rng, SeedableRng};
+use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 
 pub type RunSeed = u64;

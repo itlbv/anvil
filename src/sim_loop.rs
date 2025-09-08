@@ -1,5 +1,5 @@
 use crate::time::{FixedDt, Tick};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 pub struct SimLoop {
     pub fixed: FixedDt,

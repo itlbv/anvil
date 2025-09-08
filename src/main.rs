@@ -75,7 +75,7 @@ fn main() -> Result<(), String> {
         draw_map_grid: true,
     };
 
-    let mut map = Map::new(24, 16);
+    let map = Map::new(24, 16);
 
     let mut registry = ComponentRegistry::new();
 
@@ -86,8 +86,8 @@ fn main() -> Result<(), String> {
     let mut rand = rng_for_tick(&run, 0, 42); // tick=0, stream=42 for "spawn"
     let food_to_spawn = (0..6).map(|_| {
         let pos = Position::new(
-            rand.gen_range(2..10) as f32 + 0.5,
-            rand.gen_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (150, 40, 40, 255));
         let food = Food {
@@ -99,8 +99,8 @@ fn main() -> Result<(), String> {
 
     let wood_to_spawn = (0..3).map(|_| {
         let pos = Position::new(
-            rand.gen_range(2..10) as f32 + 0.5,
-            rand.gen_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (170, 70, 0, 255));
         (
@@ -115,8 +115,8 @@ fn main() -> Result<(), String> {
 
     let stone_to_spawn = (0..3).map(|_| {
         let pos = Position::new(
-            rand.gen_range(2..10) as f32 + 0.5,
-            rand.gen_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (170, 170, 170, 255));
         (
@@ -157,7 +157,7 @@ fn main() -> Result<(), String> {
     );
 
     let start_instant = Instant::now();
-    let mut sim_elapsed = Duration::ZERO;
+    let sim_elapsed = Duration::ZERO;
     'main: loop {
         if properties.quit {
             break 'main;
@@ -171,7 +171,7 @@ fn main() -> Result<(), String> {
             let tick = sim.tick.0;
 
             // deterministic RNG for this tick & domain "ai" (stream id = 1)
-            let mut rng_ai = rng_for_tick(&run, tick, 1);
+            let rng_ai = rng_for_tick(&run, tick, 1);
 
             // --- your per-tick simulation systems ---
             process_entity_commands(

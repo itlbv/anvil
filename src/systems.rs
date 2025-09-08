@@ -9,7 +9,6 @@ use crate::{behaviors, BehaviorList, Knowledge, Properties};
 use hecs::Entity;
 use hecs::World as ComponentRegistry;
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
 
 pub fn choose_behaviors(
     behaviors: &mut HashMap<Entity, BehaviorList>,

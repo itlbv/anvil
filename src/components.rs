@@ -1,5 +1,4 @@
 use std::any::TypeId;
-use std::time::Instant;
 
 #[derive(PartialEq)]
 pub enum StateType {

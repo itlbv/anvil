@@ -29,10 +29,10 @@ pub fn process_entity_commands(
         match entity_command.command_type {
             EntityCommandType::MoveToPosition => {
                 // dispatch MoveToPosition for an entity
-                let mut entity_behaviors = behaviors.get_mut(&entity_command.entity).unwrap();
+                let entity_behaviors = behaviors.get_mut(&entity_command.entity).unwrap();
                 entity_behaviors.insert(0, behaviors::move_to_position());
                 // add info to knowledge
-                let mut knowledge = knowledges.get_mut(&entity_command.entity).unwrap();
+                let knowledge = knowledges.get_mut(&entity_command.entity).unwrap();
                 knowledge.destination_x = entity_command.param["x"].parse::<f32>().unwrap();
                 knowledge.destination_y = entity_command.param["y"].parse::<f32>().unwrap();
             }
