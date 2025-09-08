@@ -13,13 +13,13 @@ pub struct State {
 
 pub struct Hunger {
     pub value: u8,
-    pub last_updated: Instant,
+    pub acc_seconds: f32,
 }
 impl Hunger {
     pub fn new() -> Self {
         Self {
             value: 0,
-            last_updated: Instant::now(),
+            acc_seconds: 0.,
         }
     }
 }

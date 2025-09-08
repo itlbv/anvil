@@ -77,11 +77,14 @@ pub fn movement(registry: &mut ComponentRegistry) {
     }
 }
 
-pub fn hunger(instant: Instant, registry: &mut ComponentRegistry) {
+pub fn hunger(dt_seconds: f32, registry: &mut ComponentRegistry) {
     for (_, hunger) in registry.query_mut::<&mut Hunger>() {
-        if instant - hunger.last_updated > Duration::from_secs(1) {
-            hunger.value += 1;
-            hunger.last_updated = Instant::now();
+        hunger.acc_seconds += dt_seconds;
+
+        // Increment once per full second elapsed; keep remainder in the accumulator.
+        while hunger.acc_seconds >= 1.0 {
+            hunger.value = hunger.value.saturating_add(1);
+            hunger.acc_seconds -= 1.0;
         }
     }
 }

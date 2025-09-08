@@ -189,13 +189,7 @@ fn main() -> Result<(), String> {
             );
 
             movement(&mut registry);
-
-            // Prefer refactoring hunger to use fixed dt (see note below)
-            // hunger_fixed(sim.fixed.seconds, &mut registry);
-            // TEMP shim if you can't change signature yet:
-            sim_elapsed += Duration::from_secs_f32(sim.fixed.seconds);
-            let fake_now = start_instant.checked_add(sim_elapsed).unwrap();
-            hunger(fake_now, &mut registry);
+            hunger(sim.fixed.seconds, &mut registry);
 
             // advance deterministic tick counter
             sim.advance_tick();
