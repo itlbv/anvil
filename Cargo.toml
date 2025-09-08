@@ -13,3 +13,5 @@ features = ["ttf"]
 [dependencies]
 hecs = "0.10.4"
 rand = "0.8.5"
+rand_chacha = "0.3.1"
+blake3 = "1.8.2"
