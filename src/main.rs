@@ -193,6 +193,11 @@ fn main() -> Result<(), String> {
 
             // advance deterministic tick counter
             sim.advance_tick();
+
+            if sim.tick.0 % 600 == 0 {
+                let hash = world_hash::world_hash(&registry);
+                println!("after tick {}, world_hash={:#018x}", sim.tick.0, hash);
+            }
         }
 
         render_frame(&mut window, &properties, &map, &mut registry);
