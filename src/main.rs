@@ -16,29 +16,27 @@ mod window;
 mod world_hash;
 
 use crate::btree::BehaviorTreeNode;
-use crate::components::StateType::{Idle, Move};
-use crate::components::{Food, Hunger, Movement, Position, Shape, State, StateType, Stone, Wood};
+use crate::components::StateType::Idle;
+use crate::components::{Food, Hunger, Movement, Position, Shape, State, Stone, Wood};
 use crate::entity_commands::process_entity_commands;
 use crate::entity_commands::EntityCommand;
 use crate::input_controller::InputController;
+use crate::map::Map;
 use crate::recipes::Recipe;
-use crate::rng::rng_for_tick;
-use crate::rng::RngRun;
-use crate::systems::{choose_behaviors, hunger, movement, render_frame, run_behaviors};
+use crate::rng::{rng_for_tick, RngRun};
+use crate::systems::{hunger, movement, render_frame, run_behaviors};
 use crate::window::Window;
 use hecs::Entity;
+use hecs::World as ComponentRegistry;
 use rand::Rng;
 use std::any::TypeId;
 use std::collections::HashMap;
-use std::hash::Hash;
-use std::time::{Duration, Instant};
-use trace::{Player, PropsDelta, Recorder, RunMeta, TickEvents};
-
-use crate::map::Map;
-use hecs::World as ComponentRegistry;
+use trace::{Player, PropsDelta, Recorder, RunMeta, TickEvents, Trailer};
+use world_hash as wh;
 
 type BehaviorList = Vec<Box<dyn BehaviorTreeNode>>;
 
+#[derive(Copy, Clone)]
 struct Properties {
     quit: bool,
     selected_entity: Option<Entity>,
@@ -60,7 +58,6 @@ fn props_delta(before: &Properties, after: &Properties) -> Option<PropsDelta> {
     if before.quit != after.quit {
         d.quit = Some(after.quit);
     }
-
     if d.selected_entity.is_some() || d.draw_map_grid.is_some() || d.quit.is_some() {
         Some(d)
     } else {
@@ -72,7 +69,6 @@ struct EntityWithType {
     type_id: TypeId,
     entity: Entity,
 }
-
 impl EntityWithType {
     pub fn new(type_id: TypeId, entity: Entity) -> Self {
         Self { type_id, entity }
@@ -96,16 +92,34 @@ enum Mode {
 }
 
 fn detect_mode() -> Mode {
-    let mut rec = None;
-    let mut rep = None;
-    for arg in std::env::args().skip(1) {
+    use std::iter::Peekable;
+    let mut args: Peekable<_> = std::env::args().skip(1).peekable();
+    let mut rec: Option<String> = None;
+    let mut rep: Option<String> = None;
+
+    while let Some(arg) = args.next() {
         if let Some(p) = arg.strip_prefix("--record=") {
             rec = Some(p.to_string());
+            continue;
         }
         if let Some(p) = arg.strip_prefix("--replay=") {
             rep = Some(p.to_string());
+            continue;
+        }
+        if arg == "--record" {
+            if let Some(p) = args.next() {
+                rec = Some(p);
+            }
+            continue;
+        }
+        if arg == "--replay" {
+            if let Some(p) = args.next() {
+                rep = Some(p);
+            }
+            continue;
         }
     }
+
     if let Some(p) = rec {
         Mode::Record(p)
     } else if let Some(p) = rep {
@@ -117,7 +131,6 @@ fn detect_mode() -> Mode {
 
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
-
     let mut window = Window::new(&sdl_context);
     let mut input_controller = InputController::new(&sdl_context);
 
@@ -128,45 +141,48 @@ fn main() -> Result<(), String> {
     };
 
     let map = Map::new(24, 16);
-
     let mut registry = ComponentRegistry::new();
 
-    let mut sim = sim_loop::SimLoop::new(60);
-    let run_seed = 0xDEADBEEFCAFEBABEu64; // replace with CLI arg/env for reproducibility
-    let run = RngRun::new(run_seed);
-
+    // ------------------------
+    // Mode + meta BEFORE spawns
+    // ------------------------
     let mode = detect_mode();
     let mut recorder: Option<Recorder> = None;
     let mut player: Option<Player> = None;
 
-    match &mode {
-        Mode::Record(path) => {
-            // align meta with your current settings
-            let meta = RunMeta {
-                sim_hz: 60,
-                seed: run_seed,
-                version: 1,
-            };
-            recorder = Some(Recorder::new(path, meta).map_err(|e| e.to_string())?);
-        }
+    // If replay, lock Hz+seed from the file before building sim/run & spawning
+    let (sim_hz, run_seed) = match &mode {
         Mode::Replay(path) => {
             let p = Player::new(path).map_err(|e| e.to_string())?;
-            // optional: align to recorded meta
-            if p.meta.sim_hz != 60 {
-                sim = sim_loop::SimLoop::new(p.meta.sim_hz);
-            }
-            // If you want to force the seed from the file:
-            // run = RngRun::new(p.meta.seed);
+            let hz = p.meta.sim_hz;
+            let seed = p.meta.seed;
             player = Some(p);
+            (hz, seed)
         }
-        Mode::Normal => {}
+        _ => (60, 0xDEADBEEFCAFEBABEu64),
+    };
+
+    let mut sim = sim_loop::SimLoop::new(sim_hz);
+    let run = RngRun::new(run_seed);
+
+    if let Mode::Record(path) = &mode {
+        let meta = RunMeta {
+            sim_hz,
+            seed: run_seed,
+            version: 1,
+        };
+        recorder = Some(Recorder::new(path, meta).map_err(|e| e.to_string())?);
     }
 
-    let mut rand = rng_for_tick(&run, 0, 42); // tick=0, stream=42 for "spawn"
+    // ------------------------
+    // Deterministic spawns
+    // ------------------------
+    let mut rand = rng_for_tick(&run, 0, 42); // stream=42 "spawn"
+
     let food_to_spawn = (0..6).map(|_| {
         let pos = Position::new(
-            rand.random_range(2..10) as f32 + 0.5,
-            rand.random_range(2..10) as f32 + 0.5,
+            rand.gen_range(2..10) as f32 + 0.5,
+            rand.gen_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (150, 40, 40, 255));
         let food = Food {
@@ -178,8 +194,8 @@ fn main() -> Result<(), String> {
 
     let wood_to_spawn = (0..3).map(|_| {
         let pos = Position::new(
-            rand.random_range(2..10) as f32 + 0.5,
-            rand.random_range(2..10) as f32 + 0.5,
+            rand.gen_range(2..10) as f32 + 0.5,
+            rand.gen_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (170, 70, 0, 255));
         (
@@ -194,8 +210,8 @@ fn main() -> Result<(), String> {
 
     let stone_to_spawn = (0..3).map(|_| {
         let pos = Position::new(
-            rand.random_range(2..10) as f32 + 0.5,
-            rand.random_range(2..10) as f32 + 0.5,
+            rand.gen_range(2..10) as f32 + 0.5,
+            rand.gen_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (170, 170, 170, 255));
         (
@@ -218,7 +234,6 @@ fn main() -> Result<(), String> {
 
     let mut entity_commands: Vec<EntityCommand> = vec![];
     let mut behaviors: HashMap<Entity, BehaviorList> = HashMap::new();
-    // behaviors.insert(entity, vec![behaviors::do_nothing()]);
     behaviors.insert(entity, vec![behaviors::build_house()]);
 
     let mut knowledges: HashMap<Entity, Knowledge> = HashMap::new();
@@ -235,19 +250,45 @@ fn main() -> Result<(), String> {
         },
     );
 
-    let start_instant = Instant::now();
-    let sim_elapsed = Duration::ZERO;
     'main: loop {
         if properties.quit {
             break 'main;
         }
 
-        // input
-        match &mut player {
-            // --- REPLAY: inject recorded events for this tick ---
-            Some(p) => {
-                let evs = p.next_for_tick(sim.tick.0).map_err(|e| e.to_string())?;
-                for ev in evs {
+        // ---- Pump SDL every frame so the window stays responsive
+        let before_props = properties;
+        let pre_len = entity_commands.len();
+        input_controller.update(&mut properties, &mut entity_commands, &mut registry);
+
+        // In replay, discard any live input changes to keep determinism.
+        if player.is_some() {
+            entity_commands.truncate(pre_len);
+            properties = before_props;
+        }
+
+        // ---- Normal/Record: after polling, write deltas for THIS FRAME (we still inject per TICK below)
+        if player.is_none() {
+            if let Some(rec) = &mut recorder {
+                let after = properties;
+                let pd = props_delta(&before_props, &after);
+                let cmds_tail = entity_commands[pre_len..].to_vec(); // EntityCommand: Clone + Serialize
+                let ev = TickEvents {
+                    tick: sim.tick.0,
+                    props: pd,
+                    commands: cmds_tail,
+                };
+                rec.push(&ev).map_err(|e| e.to_string())?;
+            }
+        }
+
+        // ---- Fixed-step simulation
+        let steps = sim.begin_frame();
+        for _ in 0..steps {
+            let tick = sim.tick.0;
+
+            // REPLAY: inject events for THIS TICK (authoritative for sim)
+            if let Some(p) = &mut player {
+                for ev in p.next_for_tick(tick).map_err(|e| e.to_string())? {
                     if let Some(pd) = ev.props {
                         if let Some(sel) = pd.selected_entity {
                             properties.selected_entity = Some(sel);
@@ -262,77 +303,56 @@ fn main() -> Result<(), String> {
                     entity_commands.extend(ev.commands.into_iter());
                 }
             }
-            // --- NORMAL / RECORD: poll SDL, then optionally record the delta ---
-            None => {
-                let before = Properties {
-                    quit: properties.quit,
-                    selected_entity: properties.selected_entity,
-                    draw_map_grid: properties.draw_map_grid,
-                };
-                let pre_len = entity_commands.len();
 
-                input_controller.update(&mut properties, &mut entity_commands, &mut registry);
-
-                if let Some(rec) = &mut recorder {
-                    let after = Properties {
-                        quit: properties.quit,
-                        selected_entity: properties.selected_entity,
-                        draw_map_grid: properties.draw_map_grid,
-                    };
-                    let pd = props_delta(&before, &after);
-                    let cmds_tail = entity_commands[pre_len..].to_vec(); // EntityCommand: Clone + Serialize
-                    let ev = TickEvents {
-                        tick: sim.tick.0,
-                        props: pd,
-                        commands: cmds_tail,
-                    };
-                    rec.push(&ev).map_err(|e| e.to_string())?;
-                }
-            }
-        }
-
-        let steps = sim.begin_frame();
-        for _ in 0..steps {
-            let tick = sim.tick.0;
-
-            // deterministic RNG for this tick & domain "ai" (stream id = 1)
-            let rng_ai = rng_for_tick(&run, tick, 1);
-
-            // --- your per-tick simulation systems ---
+            // --- per-tick systems ---
             process_entity_commands(
                 &mut entity_commands,
                 &mut knowledges,
                 &mut behaviors,
                 &mut registry,
             );
-
             run_behaviors(
                 &mut behaviors,
                 &mut knowledges,
                 &mut entity_commands,
                 &mut registry,
             );
-
             movement(&mut registry);
             hunger(sim.fixed.seconds, &mut registry);
 
             // advance deterministic tick counter
             sim.advance_tick();
 
+            // Auto-exit one tick after EOF in replay
             if let Some(p) = &player {
-                // Exit one tick after the last recorded tick
                 if p.eof_reached && sim.tick.0 > p.last_tick_seen {
                     properties.quit = true;
                 }
             }
 
+            // Debug hash
             if sim.tick.0 % 600 == 0 {
-                let hash = world_hash::world_hash(&registry);
+                let hash = wh::world_hash(&registry);
                 println!("after tick {}, world_hash={:#018x}", sim.tick.0, hash);
             }
         }
 
+        // ---- Render once per frame
         render_frame(&mut window, &properties, &map, &mut registry);
+    }
+
+    // ---- On exit: if recording, write trailer for future strict checks
+    if let Some(rec) = recorder {
+        let final_hash = wh::world_hash(&registry);
+        let tr = Trailer {
+            end_tick: sim.tick.0,
+            final_world_hash: final_hash,
+        };
+        rec.finish(&tr).map_err(|e| e.to_string())?;
+        println!(
+            "Recorded trailer: end_tick={}, hash={:#018x}",
+            sim.tick.0, final_hash
+        );
     }
 
     Ok(())

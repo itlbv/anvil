@@ -62,7 +62,6 @@ pub struct Player {
     cfg: bincode::config::Configuration,
     r: BufReader<File>,
     pub meta: RunMeta,
-    // streaming state
     pub eof_reached: bool,
     pub last_tick_seen: u64,
     peek: Option<TickEvents>,
@@ -83,7 +82,7 @@ impl Player {
         })
     }
 
-    /// Non-blocking: return all events for `tick`, update last_tick_seen, set eof_reached on EOF.
+    /// Non-blocking: return all events for `tick`, set eof_reached at EOF.
     pub fn next_for_tick(&mut self, tick: u64) -> Result<Vec<TickEvents>> {
         let mut out = Vec::new();
 
