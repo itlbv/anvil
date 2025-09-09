@@ -32,6 +32,7 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::{Duration, Instant};
+use trace::{Player, PropsDelta, Recorder, RunMeta, TickEvents};
 
 use crate::map::Map;
 use hecs::World as ComponentRegistry;
@@ -42,6 +43,29 @@ struct Properties {
     quit: bool,
     selected_entity: Option<Entity>,
     draw_map_grid: bool,
+}
+
+fn props_delta(before: &Properties, after: &Properties) -> Option<PropsDelta> {
+    let mut d = PropsDelta {
+        selected_entity: None,
+        draw_map_grid: None,
+        quit: None,
+    };
+    if before.selected_entity != after.selected_entity {
+        d.selected_entity = after.selected_entity;
+    }
+    if before.draw_map_grid != after.draw_map_grid {
+        d.draw_map_grid = Some(after.draw_map_grid);
+    }
+    if before.quit != after.quit {
+        d.quit = Some(after.quit);
+    }
+
+    if d.selected_entity.is_some() || d.draw_map_grid.is_some() || d.quit.is_some() {
+        Some(d)
+    } else {
+        None
+    }
 }
 
 struct EntityWithType {
@@ -65,6 +89,32 @@ struct Knowledge {
     param: HashMap<String, String>,
 }
 
+enum Mode {
+    Normal,
+    Record(String),
+    Replay(String),
+}
+
+fn detect_mode() -> Mode {
+    let mut rec = None;
+    let mut rep = None;
+    for arg in std::env::args().skip(1) {
+        if let Some(p) = arg.strip_prefix("--record=") {
+            rec = Some(p.to_string());
+        }
+        if let Some(p) = arg.strip_prefix("--replay=") {
+            rep = Some(p.to_string());
+        }
+    }
+    if let Some(p) = rec {
+        Mode::Record(p)
+    } else if let Some(p) = rep {
+        Mode::Replay(p)
+    } else {
+        Mode::Normal
+    }
+}
+
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
 
@@ -84,6 +134,33 @@ fn main() -> Result<(), String> {
     let mut sim = sim_loop::SimLoop::new(60);
     let run_seed = 0xDEADBEEFCAFEBABEu64; // replace with CLI arg/env for reproducibility
     let run = RngRun::new(run_seed);
+
+    let mode = detect_mode();
+    let mut recorder: Option<Recorder> = None;
+    let mut player: Option<Player> = None;
+
+    match &mode {
+        Mode::Record(path) => {
+            // align meta with your current settings
+            let meta = RunMeta {
+                sim_hz: 60,
+                seed: run_seed,
+                version: 1,
+            };
+            recorder = Some(Recorder::new(path, meta).map_err(|e| e.to_string())?);
+        }
+        Mode::Replay(path) => {
+            let p = Player::new(path).map_err(|e| e.to_string())?;
+            // optional: align to recorded meta
+            if p.meta.sim_hz != 60 {
+                sim = sim_loop::SimLoop::new(p.meta.sim_hz);
+            }
+            // If you want to force the seed from the file:
+            // run = RngRun::new(p.meta.seed);
+            player = Some(p);
+        }
+        Mode::Normal => {}
+    }
 
     let mut rand = rng_for_tick(&run, 0, 42); // tick=0, stream=42 for "spawn"
     let food_to_spawn = (0..6).map(|_| {
@@ -166,7 +243,53 @@ fn main() -> Result<(), String> {
         }
 
         // input
-        input_controller.update(&mut properties, &mut entity_commands, &mut registry);
+        match &mut player {
+            // --- REPLAY: inject recorded events for this tick ---
+            Some(p) => {
+                let evs = p.next_for_tick(sim.tick.0).map_err(|e| e.to_string())?;
+                for ev in evs {
+                    if let Some(pd) = ev.props {
+                        if let Some(sel) = pd.selected_entity {
+                            properties.selected_entity = Some(sel);
+                        }
+                        if let Some(b) = pd.draw_map_grid {
+                            properties.draw_map_grid = b;
+                        }
+                        if let Some(b) = pd.quit {
+                            properties.quit = b;
+                        }
+                    }
+                    entity_commands.extend(ev.commands.into_iter());
+                }
+            }
+            // --- NORMAL / RECORD: poll SDL, then optionally record the delta ---
+            None => {
+                let before = Properties {
+                    quit: properties.quit,
+                    selected_entity: properties.selected_entity,
+                    draw_map_grid: properties.draw_map_grid,
+                };
+                let pre_len = entity_commands.len();
+
+                input_controller.update(&mut properties, &mut entity_commands, &mut registry);
+
+                if let Some(rec) = &mut recorder {
+                    let after = Properties {
+                        quit: properties.quit,
+                        selected_entity: properties.selected_entity,
+                        draw_map_grid: properties.draw_map_grid,
+                    };
+                    let pd = props_delta(&before, &after);
+                    let cmds_tail = entity_commands[pre_len..].to_vec(); // EntityCommand: Clone + Serialize
+                    let ev = TickEvents {
+                        tick: sim.tick.0,
+                        props: pd,
+                        commands: cmds_tail,
+                    };
+                    rec.push(&ev).map_err(|e| e.to_string())?;
+                }
+            }
+        }
 
         let steps = sim.begin_frame();
         for _ in 0..steps {
@@ -195,6 +318,13 @@ fn main() -> Result<(), String> {
 
             // advance deterministic tick counter
             sim.advance_tick();
+
+            // Auto-exit when we reach the recorded end in replay mode
+            if let Some(p) = &player {
+                if sim.tick.0 >= p.trailer.end_tick {
+                    properties.quit = true;
+                }
+            }
 
             if sim.tick.0 % 600 == 0 {
                 let hash = world_hash::world_hash(&registry);
