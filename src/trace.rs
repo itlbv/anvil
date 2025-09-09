@@ -1,9 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::Write;
 use std::io::{BufReader, BufWriter};
-use std::path::Path; // for flush()
+use std::path::Path;
 
 use bincode::config::standard;
 use bincode::serde::{decode_from_std_read, encode_into_std_write};
@@ -12,7 +11,7 @@ use bincode::serde::{decode_from_std_read, encode_into_std_write};
 pub struct RunMeta {
     pub sim_hz: u32,
     pub seed: u64,
-    pub version: u32, // bump if you change event schema
+    pub version: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -40,26 +39,21 @@ pub struct Recorder {
     cfg: bincode::config::Configuration,
     w: BufWriter<File>,
 }
-
 impl Recorder {
-    // <- Use a generic P: AsRef<Path>
     pub fn new<P: AsRef<Path>>(path: P, meta: RunMeta) -> Result<Self> {
-        let p = path.as_ref();
-        let f = File::create(p)?;
-        let mut w = BufWriter::new(f);
         let cfg = standard();
+        let mut w = BufWriter::new(File::create(path.as_ref())?);
         encode_into_std_write(&meta, &mut w, cfg)?;
         Ok(Self { cfg, w })
     }
-
     pub fn push(&mut self, ev: &TickEvents) -> Result<()> {
         encode_into_std_write(ev, &mut self.w, self.cfg)?;
         Ok(())
     }
-
     pub fn finish(mut self, trailer: &Trailer) -> Result<()> {
+        use std::io::Write;
         encode_into_std_write(trailer, &mut self.w, self.cfg)?;
-        self.w.flush()?; // <- ensure bytes hit disk
+        self.w.flush()?;
         Ok(())
     }
 }
@@ -68,57 +62,34 @@ pub struct Player {
     cfg: bincode::config::Configuration,
     r: BufReader<File>,
     pub meta: RunMeta,
-    pub trailer: Trailer,
+    // streaming state
+    pub eof_reached: bool,
+    pub last_tick_seen: u64,
     peek: Option<TickEvents>,
 }
 
 impl Player {
-    // <- same generic signature here
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let cfg = standard();
-        let p = path.as_ref();
-
-        // Reader #1: normal streaming reader (meta consumed)
-        let f1 = File::open(p)?;
-        let mut r1 = BufReader::new(f1);
-        let meta: RunMeta = decode_from_std_read(&mut r1, cfg)?;
-
-        // Reader #2: scan to preload trailer (skip all TickEvents until decode fails, then read Trailer)
-        let f2 = File::open(p)?;
-        let mut r2 = BufReader::new(f2);
-        let _meta2: RunMeta = decode_from_std_read(&mut r2, cfg)?;
-        loop {
-            match decode_from_std_read::<TickEvents, _, _>(&mut r2, cfg) {
-                Ok(_ev) => continue,
-                Err(_) => break, // trailer next
-            }
-        }
-
-        let trailer: Trailer = match decode_from_std_read(&mut r2, cfg) {
-            Ok(t) => t,
-            Err(e) => {
-                return Err(anyhow::anyhow!(
-            "Trace is missing a Trailer (file truncated or recorded with an older binary). \
-             Re-record with the current build. Underlying error: {e}"
-        ));
-            }
-        };
-
+        let mut r = BufReader::new(File::open(path.as_ref())?);
+        let meta: RunMeta = decode_from_std_read(&mut r, cfg)?;
         Ok(Self {
             cfg,
-            r: r1,
+            r,
             meta,
-            trailer,
+            eof_reached: false,
+            last_tick_seen: 0,
             peek: None,
         })
     }
 
-    /// Non-blocking: return events exactly for `tick`. Stops as soon as a different tick is seen.
+    /// Non-blocking: return all events for `tick`, update last_tick_seen, set eof_reached on EOF.
     pub fn next_for_tick(&mut self, tick: u64) -> Result<Vec<TickEvents>> {
         let mut out = Vec::new();
 
         if let Some(ev) = self.peek.take() {
             if ev.tick == tick {
+                self.last_tick_seen = self.last_tick_seen.max(ev.tick);
                 out.push(ev);
             } else {
                 self.peek = Some(ev);
@@ -129,20 +100,21 @@ impl Player {
         const MAX_READS_PER_CALL: usize = 64;
         for _ in 0..MAX_READS_PER_CALL {
             match decode_from_std_read::<TickEvents, _, _>(&mut self.r, self.cfg) {
-                Ok(ev) if ev.tick == tick => out.push(ev),
+                Ok(ev) if ev.tick == tick => {
+                    self.last_tick_seen = self.last_tick_seen.max(ev.tick);
+                    out.push(ev);
+                }
                 Ok(ev) => {
+                    self.last_tick_seen = self.last_tick_seen.max(ev.tick);
                     self.peek = Some(ev);
                     break;
                 }
-                Err(_) => break, // EOF or trailer boundary
+                Err(_) => {
+                    self.eof_reached = true;
+                    break;
+                }
             }
         }
-
         Ok(out)
-    }
-
-    /// If you still want it; returns the preloaded trailer.
-    pub fn read_trailer(self) -> Trailer {
-        self.trailer
     }
 }

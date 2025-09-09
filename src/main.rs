@@ -319,9 +319,9 @@ fn main() -> Result<(), String> {
             // advance deterministic tick counter
             sim.advance_tick();
 
-            // Auto-exit when we reach the recorded end in replay mode
             if let Some(p) = &player {
-                if sim.tick.0 >= p.trailer.end_tick {
+                // Exit one tick after the last recorded tick
+                if p.eof_reached && sim.tick.0 > p.last_tick_seen {
                     properties.quit = true;
                 }
             }
