@@ -19,7 +19,7 @@ mod world_hash;
 use crate::btree::BehaviorTreeNode;
 use crate::components::StateType::Idle;
 use crate::components::{Food, Hunger, Movement, Position, Shape, State, Stone, Wood};
-use crate::entity_commands::process_entity_commands;
+use crate::entity_commands::process_commands;
 use crate::entity_commands::EntityCommand;
 use crate::input_controller::InputController;
 use crate::map::Map;
@@ -308,7 +308,7 @@ fn main() -> Result<(), String> {
             command_bus.begin_tick();
 
             // --- per-tick systems ---
-            process_entity_commands(
+            process_commands(
                 &mut command_bus.processing,
                 &mut knowledges,
                 &mut behaviors,

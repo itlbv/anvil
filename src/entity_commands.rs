@@ -36,7 +36,7 @@ impl EntityCommand {
     }
 }
 
-pub fn process_entity_commands(
+pub fn process_commands(
     commands: &mut Vec<EntityCommand>,
     knowledges: &mut HashMap<Entity, Knowledge>,
     behaviors: &mut HashMap<Entity, BehaviorList>,
