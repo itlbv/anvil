@@ -333,10 +333,13 @@ fn main() -> Result<(), String> {
                 }
             }
 
-            // Debug hash
+            #[cfg(feature = "hash_debug")]
             if sim.tick.0 % 600 == 0 {
-                let hash = wh::world_hash(&registry);
-                println!("after tick {}, world_hash={:#018x}", sim.tick.0, hash);
+                let b = world_hash::world_hash_breakdown(&registry);
+                println!(
+                    "tick={} total={:#018x} pos={:#018x} hun={:#018x} sta={:#018x} food={:#018x} wood={:#018x} stone={:#018x} shape={:#018x}",
+                    sim.tick.0, b.total, b.pos, b.hun, b.sta, b.food, b.wood, b.stone, b.shape
+                );
             }
         }
 
