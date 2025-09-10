@@ -466,16 +466,14 @@ fn main() -> Result<(), String> {
         render_frame(&mut window, &properties, &map, &mut registry);
     }
 
-    // ---- On exit: if recording, write trailer for future strict checks
-    if let Some(rec) = recorder {
-        let final_hash = wh::world_hash(&registry);
-        let tr = Trailer {
-            end_tick: sim.tick.0,
-            final_world_hash: final_hash,
-        };
-        rec.finish(&tr).map_err(|e| e.to_string())?;
-        println!("FINAL end_tick={}, hash={:#018x}", sim.tick.0, final_hash);
-    }
+    // ---- Write trailer for future strict checks
+    let final_hash = wh::world_hash(&registry);
+    let tr = Trailer {
+        end_tick: sim.tick.0,
+        final_world_hash: final_hash,
+    };
+    rec.finish(&tr).map_err(|e| e.to_string())?;
+    println!("FINAL end_tick={}, hash={:#018x}", sim.tick.0, final_hash);
 
     Ok(())
 }

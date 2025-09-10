@@ -15,13 +15,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install SDL2 (for sdl2 crate)
-        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev xvfb
 
       - name: Build (release)
         run: cargo build --release
 
       - name: Record 1200 ticks
         id: record
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
         run: |
           set -euo pipefail
           REC_OUT=$(xvfb-run -a target/release/anvil --record=ci.bin --ticks=1200 | tee /dev/stderr)
@@ -31,6 +34,9 @@ jobs:
 
       - name: Replay
         id: replay
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
         run: |
           set -euo pipefail
           REP_OUT=$(xvfb-run -a target/release/anvil --replay=ci.bin | tee /dev/stderr)
