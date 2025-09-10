@@ -138,3 +138,32 @@ pub fn process_commands(
         }
     }
 }
+
+pub fn resolve_commands(cmds: &mut Vec<EntityCommand>) {
+    use std::collections::HashMap;
+
+    // Keep RemoveFromMap in original order.
+    let mut removes: Vec<EntityCommand> = Vec::new();
+
+    // For MoveToPosition: last-wins per entity.
+    let mut last_move: HashMap<u64, EntityCommand> = HashMap::new();
+
+    for cmd in cmds.drain(..) {
+        match cmd.kind {
+            CommandType::RemoveFromMap => removes.push(cmd),
+            CommandType::MoveToPosition { .. } => {
+                let id = cmd.entity.to_bits().get();
+                last_move.insert(id, cmd); // overwrite -> last wins
+            }
+        }
+    }
+
+    // Deterministic rebuild:
+    // 1) original-order removes
+    cmds.extend(removes.into_iter());
+
+    // 2) moves sorted by entity id to avoid HashMap iteration nondeterminism
+    let mut moves: Vec<_> = last_move.into_values().collect();
+    moves.sort_by_key(|c| c.entity.to_bits().get());
+    cmds.extend(moves.into_iter());
+}
