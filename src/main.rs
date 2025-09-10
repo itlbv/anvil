@@ -468,11 +468,16 @@ fn main() -> Result<(), String> {
 
     // ---- Write trailer for future strict checks
     let final_hash = wh::world_hash(&registry);
-    let tr = Trailer {
-        end_tick: sim.tick.0,
-        final_world_hash: final_hash,
-    };
-    rec.finish(&tr).map_err(|e| e.to_string())?;
+    let end_tick = sim.tick.0;
+
+    if let Some(rec) = recorder {
+        let tr = Trailer {
+            end_tick,
+            final_world_hash: final_hash,
+        };
+        rec.finish(&tr).map_err(|e| e.to_string())?;
+    }
+
     println!("FINAL end_tick={}, hash={:#018x}", sim.tick.0, final_hash);
 
     Ok(())
