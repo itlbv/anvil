@@ -21,14 +21,18 @@ pub struct EntityCommand {
 }
 
 impl EntityCommand {
-    pub fn move_to(entity: Entity, x: f32, y: f32) -> Self {
+    fn new(entity: Entity, kind: CommandType) -> Self {
+        Self { entity, kind }
+    }
+
+    fn move_to(entity: Entity, x: f32, y: f32) -> Self {
         Self {
             entity,
             kind: CommandType::MoveToPosition { x, y },
         }
     }
 
-    pub fn remove_from_map(entity: Entity) -> Self {
+    fn remove_from_map(entity: Entity) -> Self {
         Self {
             entity,
             kind: CommandType::RemoveFromMap,
@@ -36,23 +40,93 @@ impl EntityCommand {
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct CommandMeta {
+    pub source: &'static str,
+    pub file: &'static str,
+    pub line: u32,
+}
+impl Default for CommandMeta {
+    fn default() -> Self {
+        Self {
+            source: "unknown source",
+            file: "unknown file",
+            line: 0,
+        }
+    }
+}
+
+#[track_caller]
+#[inline]
+pub fn push_with_meta(
+    commands: &mut Vec<EntityCommand>,
+    cmd: EntityCommand,
+    mut meta: CommandMeta,
+) {
+    // Autofill context if not provided.
+    if meta.source == "unknown source" {
+        meta.source = module_path!();
+    }
+    if meta.file == "unknown file" {
+        let loc = std::panic::Location::caller();
+        meta.file = loc.file();
+        meta.line = loc.line();
+    }
+
+    commands.push(cmd);
+}
+
+#[track_caller]
+#[inline]
+pub fn push_new_command(out: &mut Vec<EntityCommand>, entity: Entity, kind: CommandType) {
+    push_with_meta(
+        out,
+        EntityCommand::new(entity, kind),
+        CommandMeta::default(),
+    );
+}
+
+pub mod emit {
+    use super::*;
+
+    #[track_caller]
+    #[inline]
+    pub fn move_to(commands: &mut Vec<EntityCommand>, entity: Entity, x: f32, y: f32) {
+        push_with_meta(
+            commands,
+            EntityCommand::move_to(entity, x, y),
+            CommandMeta::default(),
+        );
+    }
+
+    #[track_caller]
+    #[inline]
+    pub fn remove_from_map(commands: &mut Vec<EntityCommand>, entity: Entity) {
+        push_with_meta(
+            commands,
+            EntityCommand::remove_from_map(entity),
+            CommandMeta::default(),
+        );
+    }
+}
+
 pub fn process_commands(
     commands: &mut Vec<EntityCommand>,
     knowledges: &mut HashMap<Entity, Knowledge>,
-    behaviors: &mut HashMap<Entity, BehaviorList>,
+    behaviours: &mut HashMap<Entity, BehaviorList>,
     registry: &mut ComponentRegistry,
 ) {
     while let Some(cmd) = commands.pop() {
         match cmd.kind {
             CommandType::MoveToPosition { x, y } => {
-                let entity_behaviours = behaviors
+                let entity_behaviours = behaviours
                     .get_mut(&cmd.entity)
                     .expect("behaviours missing for entity");
                 entity_behaviours.insert(0, behaviors::move_to_position());
 
                 let knowledge = knowledges
                     .get_mut(&cmd.entity)
-                    .expect("knowledg missing for entity");
+                    .expect("knowledge missing for entity");
                 knowledge.destination_x = x;
                 knowledge.destination_y = y;
             }
@@ -61,27 +135,6 @@ pub fn process_commands(
                     .remove_one::<Position>(cmd.entity)
                     .expect("failed to remove Position component");
             }
-        }
-    }
-}
-
-pub fn push_new_command(
-    entity_commands: &mut Vec<EntityCommand>,
-    entity: Entity,
-    command_kind: CommandType,
-) {
-    match command_kind {
-        CommandType::MoveToPosition { x, y } => {
-            entity_commands.push(EntityCommand {
-                entity,
-                kind: CommandType::MoveToPosition { x, y },
-            });
-        }
-        CommandType::RemoveFromMap => {
-            entity_commands.push(EntityCommand {
-                entity,
-                kind: CommandType::RemoveFromMap,
-            });
         }
     }
 }

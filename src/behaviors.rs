@@ -206,7 +206,7 @@ impl BehaviorTreeNode for PickUpTargetToInventory {
     fn run(
         &mut self,
         knowledge: &mut Knowledge,
-        entity_commands: &mut Vec<EntityCommand>,
+        commands: &mut Vec<EntityCommand>,
         _registry: &mut ComponentRegistry,
     ) -> BehaviorStatus {
         println!("PickUpTargetToInventory");
@@ -226,11 +226,7 @@ impl BehaviorTreeNode for PickUpTargetToInventory {
         );
 
         // dispatch command to remove entity from map
-        entity_commands::push_new_command(
-            entity_commands,
-            knowledge.target.as_ref().unwrap().entity,
-            CommandType::RemoveFromMap,
-        );
+        entity_commands::emit::remove_from_map(commands, knowledge.target.as_ref().unwrap().entity);
 
         Success
     }
