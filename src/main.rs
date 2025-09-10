@@ -1,5 +1,6 @@
 mod behaviors;
 mod btree;
+mod command_bus;
 mod components;
 mod entity_commands;
 mod entity_serde;
@@ -231,6 +232,8 @@ fn main() -> Result<(), String> {
         Movement::new(),
         State { state: Idle },
     ));
+
+    let mut command_bus = command_bus::CommandBus::new();
 
     let mut entity_commands: Vec<EntityCommand> = vec![];
     let mut behaviors: HashMap<Entity, BehaviorList> = HashMap::new();
