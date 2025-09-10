@@ -315,8 +315,8 @@ fn main() -> Result<(), String> {
 
     let stone_to_spawn = (0..3).map(|_| {
         let pos = Position::new(
-            rand.gen_range(2..10) as f32 + 0.5,
-            rand.gen_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (170, 170, 170, 255));
         (
