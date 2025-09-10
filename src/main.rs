@@ -234,8 +234,6 @@ fn main() -> Result<(), String> {
     ));
 
     let mut command_bus = command_bus::CommandBus::new();
-
-    let mut entity_commands: Vec<EntityCommand> = vec![];
     let mut behaviors: HashMap<Entity, BehaviorList> = HashMap::new();
     behaviors.insert(entity, vec![behaviors::build_house()]);
 
@@ -260,12 +258,12 @@ fn main() -> Result<(), String> {
 
         // ---- Pump SDL every frame so the window stays responsive
         let before_props = properties;
-        let pre_len = entity_commands.len();
-        input_controller.update(&mut properties, &mut entity_commands, &mut registry);
+        let pre_len = command_bus.incoming.len();
+        input_controller.update(&mut properties, &mut command_bus.incoming, &mut registry);
 
         // In replay, discard any live input changes to keep determinism.
         if player.is_some() {
-            entity_commands.truncate(pre_len);
+            command_bus.incoming.truncate(pre_len);
             properties = before_props;
         }
 
@@ -274,7 +272,7 @@ fn main() -> Result<(), String> {
             if let Some(rec) = &mut recorder {
                 let after = properties;
                 let pd = props_delta(&before_props, &after);
-                let cmds_tail = entity_commands[pre_len..].to_vec(); // EntityCommand: Clone + Serialize
+                let cmds_tail = command_bus.incoming[pre_len..].to_vec(); // EntityCommand: Clone + Serialize
                 let ev = TickEvents {
                     tick: sim.tick.0,
                     props: pd,
@@ -303,13 +301,15 @@ fn main() -> Result<(), String> {
                             properties.quit = b;
                         }
                     }
-                    entity_commands.extend(ev.commands.into_iter());
+                    command_bus.incoming.extend(ev.commands.into_iter());
                 }
             }
 
+            command_bus.begin_tick();
+
             // --- per-tick systems ---
             process_entity_commands(
-                &mut entity_commands,
+                &mut command_bus.processing,
                 &mut knowledges,
                 &mut behaviors,
                 &mut registry,
@@ -317,7 +317,7 @@ fn main() -> Result<(), String> {
             run_behaviors(
                 &mut behaviors,
                 &mut knowledges,
-                &mut entity_commands,
+                &mut command_bus.incoming,
                 &mut registry,
             );
             movement(&mut registry);

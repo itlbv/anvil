@@ -21,7 +21,7 @@ impl InputController {
     pub fn update(
         &mut self,
         properties: &mut Properties,
-        entity_commands: &mut Vec<EntityCommand>,
+        incoming_commands: &mut Vec<EntityCommand>,
         registry: &mut ComponentRegistry,
     ) {
         for event in self.sdl_events.poll_iter() {
@@ -42,7 +42,7 @@ impl InputController {
                     x,
                     y,
                     ..
-                } => right_mouse_click(x, y, properties, entity_commands),
+                } => right_mouse_click(x, y, properties, incoming_commands),
                 _ => {}
             }
         }
@@ -70,7 +70,7 @@ fn right_mouse_click(
     x_screen: i32,
     y_screen: i32,
     properties: &mut Properties,
-    entity_commands: &mut Vec<EntityCommand>,
+    incoming_commands: &mut Vec<EntityCommand>,
 ) {
     // if entity is selected add move event to it with mouse position
     match properties.selected_entity {
@@ -81,7 +81,7 @@ fn right_mouse_click(
             let x_world = util::screen_to_world(x_screen, 50);
             let y_world = util::screen_to_world(y_screen, 50);
             entity_commands::push_new_command_with_param(
-                entity_commands,
+                incoming_commands,
                 entity,
                 MoveToPosition,
                 [
