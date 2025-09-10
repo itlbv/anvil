@@ -286,8 +286,8 @@ fn main() -> Result<(), String> {
 
     let food_to_spawn = (0..6).map(|_| {
         let pos = Position::new(
-            rand.gen_range(2..10) as f32 + 0.5,
-            rand.gen_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (150, 40, 40, 255));
         let food = Food {
@@ -299,8 +299,8 @@ fn main() -> Result<(), String> {
 
     let wood_to_spawn = (0..3).map(|_| {
         let pos = Position::new(
-            rand.gen_range(2..10) as f32 + 0.5,
-            rand.gen_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
+            rand.random_range(2..10) as f32 + 0.5,
         );
         let shape = Shape::new(0.2, 0.2, (170, 70, 0, 255));
         (
@@ -478,7 +478,10 @@ fn main() -> Result<(), String> {
         rec.finish(&tr).map_err(|e| e.to_string())?;
     }
 
-    println!("FINAL end_tick={}, hash={:#018x}", sim.tick.0, final_hash);
+    println!(
+        "FINAL end_tick={} world_hash={:#018x}",
+        sim.tick.0, final_hash
+    );
 
     Ok(())
 }
