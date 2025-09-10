@@ -3,20 +3,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::components::Position;
-use crate::entity_commands::EntityCommandType::{MoveToPosition, RemoveFromMap};
 use crate::{behaviors, BehaviorList, Knowledge};
 use hecs::World as ComponentRegistry;
 use sdl2::ttf::init;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum CommandKind {
+pub enum CommandType {
     MoveToPosition { x: f32, y: f32 },
-    RemoveFromMap,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum EntityCommandType {
-    MoveToPosition,
     RemoveFromMap,
 }
 
@@ -24,27 +17,21 @@ pub enum EntityCommandType {
 pub struct EntityCommand {
     #[serde(with = "crate::entity_serde")]
     entity: Entity,
-    kind: CommandKind,
-    command_type: EntityCommandType,
-    param: HashMap<String, String>,
+    kind: CommandType,
 }
 
 impl EntityCommand {
     pub fn move_to(entity: Entity, x: f32, y: f32) -> Self {
         Self {
             entity,
-            kind: CommandKind::MoveToPosition { x, y },
-            command_type: MoveToPosition,
-            param: HashMap::new(),
+            kind: CommandType::MoveToPosition { x, y },
         }
     }
 
     pub fn remove_from_map(entity: Entity) -> Self {
         Self {
             entity,
-            kind: CommandKind::RemoveFromMap,
-            command_type: RemoveFromMap,
-            param: HashMap::new(),
+            kind: CommandType::RemoveFromMap,
         }
     }
 }
@@ -57,7 +44,7 @@ pub fn process_entity_commands(
 ) {
     while let Some(cmd) = commands.pop() {
         match cmd.kind {
-            CommandKind::MoveToPosition { x, y } => {
+            CommandType::MoveToPosition { x, y } => {
                 let entity_behaviours = behaviors
                     .get_mut(&cmd.entity)
                     .expect("behaviours missing for entity");
@@ -69,7 +56,7 @@ pub fn process_entity_commands(
                 knowledge.destination_x = x;
                 knowledge.destination_y = y;
             }
-            CommandKind::RemoveFromMap => {
+            CommandType::RemoveFromMap => {
                 registry
                     .remove_one::<Position>(cmd.entity)
                     .expect("failed to remove Position component");
@@ -81,23 +68,19 @@ pub fn process_entity_commands(
 pub fn push_new_command(
     entity_commands: &mut Vec<EntityCommand>,
     entity: Entity,
-    command_kind: CommandKind,
+    command_kind: CommandType,
 ) {
     match command_kind {
-        CommandKind::MoveToPosition { x, y } => {
+        CommandType::MoveToPosition { x, y } => {
             entity_commands.push(EntityCommand {
                 entity,
-                kind: CommandKind::MoveToPosition { x, y },
-                command_type: MoveToPosition,
-                param: HashMap::new(),
+                kind: CommandType::MoveToPosition { x, y },
             });
         }
-        CommandKind::RemoveFromMap => {
+        CommandType::RemoveFromMap => {
             entity_commands.push(EntityCommand {
                 entity,
-                kind: CommandKind::RemoveFromMap,
-                command_type: RemoveFromMap,
-                param: HashMap::new(),
+                kind: CommandType::RemoveFromMap,
             });
         }
     }

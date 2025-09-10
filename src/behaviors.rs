@@ -2,8 +2,7 @@ use crate::btree::BehaviorStatus::{Failure, Running, Success};
 use crate::btree::{BehaviorStatus, BehaviorTreeNode, DoUntil, Sequence};
 use crate::components::StateType::{Idle, Move};
 use crate::components::{Food, Movement, Position, State, Stone, Wood};
-use crate::entity_commands::EntityCommandType::RemoveFromMap;
-use crate::entity_commands::{CommandKind, EntityCommand};
+use crate::entity_commands::{CommandType, EntityCommand};
 use crate::{entity_commands, recipes, EntityWithType, Knowledge};
 use hecs::{Component, Entity, World as ComponentRegistry};
 use std::any::TypeId;
@@ -230,7 +229,7 @@ impl BehaviorTreeNode for PickUpTargetToInventory {
         entity_commands::push_new_command(
             entity_commands,
             knowledge.target.as_ref().unwrap().entity,
-            CommandKind::RemoveFromMap,
+            CommandType::RemoveFromMap,
         );
 
         Success

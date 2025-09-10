@@ -1,5 +1,4 @@
-use crate::entity_commands::EntityCommandType::MoveToPosition;
-use crate::entity_commands::{CommandKind, EntityCommand};
+use crate::entity_commands::{CommandType, EntityCommand};
 use crate::{entity_commands, util, Position, Properties};
 use hecs::World as ComponentRegistry;
 use sdl2::event::Event;
@@ -83,7 +82,7 @@ fn right_mouse_click(
             entity_commands::push_new_command(
                 incoming_commands,
                 entity,
-                CommandKind::MoveToPosition {
+                CommandType::MoveToPosition {
                     x: x_world,
                     y: y_world,
                 },
