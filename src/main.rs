@@ -32,6 +32,7 @@ use hecs::World as ComponentRegistry;
 use rand::Rng;
 use std::any::TypeId;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use trace::{Player, PropsDelta, Recorder, RunMeta, TickEvents, Trailer};
 use world_hash as wh;
 
@@ -86,98 +87,201 @@ struct Knowledge {
     param: HashMap<String, String>,
 }
 
+#[derive(Debug, Clone)]
 enum Mode {
     Normal,
-    Record(String),
-    Replay(String),
+    Record(PathBuf),
+    Replay(PathBuf),
 }
 
-fn detect_mode() -> Mode {
-    use std::iter::Peekable;
-    let mut args: Peekable<_> = std::env::args().skip(1).peekable();
-    let mut rec: Option<String> = None;
-    let mut rep: Option<String> = None;
+#[derive(Debug, Clone)]
+struct Cli {
+    mode: Mode,
+    ticks: Option<u64>,
+    seed: Option<u64>,   // optional; use if you want
+    sim_hz: Option<u32>, // optional; use if you want
+}
 
-    while let Some(arg) = args.next() {
-        if let Some(p) = arg.strip_prefix("--record=") {
-            rec = Some(p.to_string());
-            continue;
+fn usage() -> &'static str {
+    "Usage:
+      anvil [--record FILE | --replay FILE] [--ticks N] [--seed U64] [--sim-hz HZ]
+
+    Examples:
+      anvil --record run.bin --ticks 1200
+      anvil --replay=run.bin
+
+    Notes:
+      --record and --replay are mutually exclusive.
+      --ticks stops the sim after N fixed ticks and prints:
+        FINAL end_tick=<N> world_hash=<0x...>
+"
+}
+
+fn parse_args() -> Result<Cli, String> {
+    let mut mode = Mode::Normal;
+    let mut ticks: Option<u64> = None;
+    let mut seed: Option<u64> = None;
+    let mut sim_hz: Option<u32> = None;
+
+    let mut it = std::env::args().skip(1).peekable();
+    while let Some(arg) = it.next() {
+        // Help
+        if arg == "-h" || arg == "--help" {
+            return Err(usage().to_string());
         }
-        if let Some(p) = arg.strip_prefix("--replay=") {
-            rep = Some(p.to_string());
-            continue;
-        }
-        if arg == "--record" {
-            if let Some(p) = args.next() {
-                rec = Some(p);
+
+        // --foo=bar style
+        if let Some(val) = arg.strip_prefix("--record=") {
+            if !matches!(mode, Mode::Normal) {
+                return Err("Cannot combine --record and --replay".into());
             }
+            mode = Mode::Record(PathBuf::from(val));
             continue;
         }
-        if arg == "--replay" {
-            if let Some(p) = args.next() {
-                rep = Some(p);
+        if let Some(val) = arg.strip_prefix("--replay=") {
+            if !matches!(mode, Mode::Normal) {
+                return Err("Cannot combine --record and --replay".into());
             }
+            mode = Mode::Replay(PathBuf::from(val));
             continue;
+        }
+        if let Some(val) = arg.strip_prefix("--ticks=") {
+            ticks = Some(
+                val.parse()
+                    .map_err(|_| "Invalid --ticks value; expected u64".to_string())?,
+            );
+            continue;
+        }
+        if let Some(val) = arg.strip_prefix("--seed=") {
+            // allow hex: 0x...
+            let v = if let Some(hex) = val.strip_prefix("0x") {
+                u64::from_str_radix(hex, 16)
+            } else {
+                val.parse()
+            };
+            seed = Some(
+                v.map_err(|_| "Invalid --seed value; expected u64 (allow 0x...)".to_string())?,
+            );
+            continue;
+        }
+        if let Some(val) = arg.strip_prefix("--sim-hz=") {
+            sim_hz = Some(
+                val.parse()
+                    .map_err(|_| "Invalid --sim-hz value; expected u32".to_string())?,
+            );
+            continue;
+        }
+
+        // Space-separated variants: --flag VAL
+        match arg.as_str() {
+            "--record" => {
+                let p = it
+                    .next()
+                    .ok_or("--record requires a file path".to_string())?;
+                if !matches!(mode, Mode::Normal) {
+                    return Err("Cannot combine --record and --replay".into());
+                }
+                mode = Mode::Record(PathBuf::from(p));
+            }
+            "--replay" => {
+                let p = it
+                    .next()
+                    .ok_or("--replay requires a file path".to_string())?;
+                if !matches!(mode, Mode::Normal) {
+                    return Err("Cannot combine --record and --replay".into());
+                }
+                mode = Mode::Replay(PathBuf::from(p));
+            }
+            "--ticks" => {
+                let v = it.next().ok_or("--ticks requires a number".to_string())?;
+                ticks = Some(
+                    v.parse()
+                        .map_err(|_| "Invalid --ticks value; expected u64".to_string())?,
+                );
+            }
+            "--seed" => {
+                let v = it.next().ok_or("--seed requires a number".to_string())?;
+                let parsed = if let Some(hex) = v.strip_prefix("0x") {
+                    u64::from_str_radix(hex, 16)
+                } else {
+                    v.parse()
+                };
+                seed =
+                    Some(parsed.map_err(|_| {
+                        "Invalid --seed value; expected u64 (allow 0x...)".to_string()
+                    })?);
+            }
+            "--sim-hz" => {
+                let v = it.next().ok_or("--sim-hz requires a number".to_string())?;
+                sim_hz = Some(
+                    v.parse()
+                        .map_err(|_| "Invalid --sim-hz value; expected u32".to_string())?,
+                );
+            }
+            other => {
+                return Err(format!("Unknown option: {other}\n{usage}", usage = usage()));
+            }
         }
     }
 
-    if let Some(p) = rec {
-        Mode::Record(p)
-    } else if let Some(p) = rep {
-        Mode::Replay(p)
-    } else {
-        Mode::Normal
-    }
+    Ok(Cli {
+        mode,
+        ticks,
+        seed,
+        sim_hz,
+    })
 }
 
 fn main() -> Result<(), String> {
+    // Parse CLI
+    let cli = parse_args().map_err(|e| e.to_string())?;
+
+    // Defaults
+    let mut sim_hz: u32 = 60;
+    if let Some(hz) = cli.sim_hz {
+        sim_hz = hz;
+    }
+    let mut sim = sim_loop::SimLoop::new(sim_hz);
+
+    let mut run_seed = 0xDEADBEEFCAFEBABEu64;
+    if let Some(seed) = cli.seed {
+        run_seed = seed;
+    }
+    let run = RngRun::new(run_seed);
+
+    // Mode
+    let mut recorder: Option<Recorder> = None;
+    let mut player: Option<Player> = None;
+    match &cli.mode {
+        Mode::Record(path) => {
+            let meta = RunMeta {
+                sim_hz: sim_hz as u32,
+                seed: run_seed,
+                version: 1,
+            };
+            recorder = Some(Recorder::new(&path, meta).map_err(|e| e.to_string())?);
+        }
+        Mode::Replay(path) => {
+            let p = Player::new(&path).map_err(|e| e.to_string())?;
+            if p.meta.sim_hz != sim_hz as u32 {
+                sim = sim_loop::SimLoop::new(p.meta.sim_hz);
+            }
+            // If you want to force the recorded seed:
+            // run = RngRun::new(p.meta.seed);
+            player = Some(p);
+        }
+        Mode::Normal => {}
+    }
+
+    // SDL2 rendering and input init
     let sdl_context = sdl2::init()?;
     let mut window = Window::new(&sdl_context);
     let mut input_controller = InputController::new(&sdl_context);
 
-    let mut properties = Properties {
-        quit: false,
-        selected_entity: None,
-        draw_map_grid: true,
-    };
-
-    let map = Map::new(24, 16);
     let mut registry = ComponentRegistry::new();
+    let map = Map::new(24, 16);
 
-    // ------------------------
-    // Mode + meta BEFORE spawns
-    // ------------------------
-    let mode = detect_mode();
-    let mut recorder: Option<Recorder> = None;
-    let mut player: Option<Player> = None;
-
-    // If replay, lock Hz+seed from the file before building sim/run & spawning
-    let (sim_hz, run_seed) = match &mode {
-        Mode::Replay(path) => {
-            let p = Player::new(path).map_err(|e| e.to_string())?;
-            let hz = p.meta.sim_hz;
-            let seed = p.meta.seed;
-            player = Some(p);
-            (hz, seed)
-        }
-        _ => (60, 0xDEADBEEFCAFEBABEu64),
-    };
-
-    let mut sim = sim_loop::SimLoop::new(sim_hz);
-    let run = RngRun::new(run_seed);
-
-    if let Mode::Record(path) = &mode {
-        let meta = RunMeta {
-            sim_hz,
-            seed: run_seed,
-            version: 1,
-        };
-        recorder = Some(Recorder::new(path, meta).map_err(|e| e.to_string())?);
-    }
-
-    // ------------------------
-    // Deterministic spawns
-    // ------------------------
+    // Entities spawn
     let mut rand = rng_for_tick(&run, 0, 42); // stream=42 "spawn"
 
     let food_to_spawn = (0..6).map(|_| {
@@ -250,6 +354,14 @@ fn main() -> Result<(), String> {
             param: Default::default(),
         },
     );
+
+    let mut properties = Properties {
+        quit: false,
+        selected_entity: None,
+        draw_map_grid: true,
+    };
+
+    let cli_ticks_limit = cli.ticks;
 
     'main: loop {
         if properties.quit {
@@ -325,6 +437,13 @@ fn main() -> Result<(), String> {
 
             // advance deterministic tick counter
             sim.advance_tick();
+
+            // Exiting if ticks limit from CLI args reached
+            if let Some(limit) = cli_ticks_limit {
+                if sim.tick.0 >= limit {
+                    properties.quit = true;
+                }
+            }
 
             // Auto-exit one tick after EOF in replay
             if let Some(p) = &player {
