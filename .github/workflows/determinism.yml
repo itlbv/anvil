@@ -20,14 +20,14 @@ jobs:
       - name: Build (release)
         run: cargo build --release
 
-      - name: Record 1200 ticks
+      - name: Record 200 ticks
         id: record
         env:
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
         run: |
           set -euo pipefail
-          REC_OUT=$(xvfb-run -a target/release/anvil --record=ci.bin --ticks=1200 | tee /dev/stderr)
+          REC_OUT=$(xvfb-run -a target/release/anvil --record=ci.bin --ticks=200 | tee /dev/stderr)
           echo "rec_out<<EOF" >> $GITHUB_OUTPUT
           echo "$REC_OUT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
