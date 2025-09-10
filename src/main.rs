@@ -474,10 +474,7 @@ fn main() -> Result<(), String> {
             final_world_hash: final_hash,
         };
         rec.finish(&tr).map_err(|e| e.to_string())?;
-        println!(
-            "Recorded trailer: end_tick={}, hash={:#018x}",
-            sim.tick.0, final_hash
-        );
+        println!("FINAL end_tick={}, hash={:#018x}", sim.tick.0, final_hash);
     }
 
     Ok(())
