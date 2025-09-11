@@ -247,7 +247,7 @@ fn main() -> Result<(), String> {
     if let Some(seed) = cli.seed {
         run_seed = seed;
     }
-    let run = RngRun::new(run_seed);
+    let mut run = RngRun::new(run_seed);
 
     // Mode
     let mut recorder: Option<Recorder> = None;
@@ -263,11 +263,11 @@ fn main() -> Result<(), String> {
         }
         Mode::Replay(path) => {
             let p = Player::new(&path).map_err(|e| e.to_string())?;
-            if p.meta.sim_hz != sim_hz as u32 {
-                sim = sim_loop::SimLoop::new(p.meta.sim_hz);
+            if p.meta.sim_hz != sim_hz {
+                sim_hz = p.meta.sim_hz;
+                sim = sim_loop::SimLoop::new(sim_hz);
             }
-            // If you want to force the recorded seed:
-            // run = RngRun::new(p.meta.seed);
+            run = RngRun::new(p.meta.seed);
             player = Some(p);
         }
         Mode::Normal => {}

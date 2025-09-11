@@ -33,25 +33,30 @@ pub fn run_behaviors(
     entity_commands: &mut Vec<EntityCommand>,
     registry: &mut ComponentRegistry,
 ) {
-    behaviors.iter_mut().for_each(|(entity, behavior_vec)| {
-        let knowledge = knowledges.get_mut(entity).unwrap();
+    let mut keys: Vec<Entity> = behaviors.keys().cloned().collect();
+    keys.sort_unstable_by_key(|e| e.to_bits().get());
+
+    for e in keys {
+        let bhvs = behaviors.get_mut(&e).expect("behaviours missing entity");
+        let knldg = knowledges.get_mut(&e).expect("knowledges missing entity");
+
         // if behaviors is empty, pring message and assign do_nothing()
-        if behavior_vec.is_empty() {
+        if bhvs.is_empty() {
             println!("All behaviors completed, assigning DoNothing");
-            behavior_vec.push(behaviors::do_nothing())
+            bhvs.push(behaviors::do_nothing())
         }
         // when returned status is not running, remove finished behavior
-        let status = behavior_vec[0].run(knowledge, entity_commands, registry);
+        let status = bhvs[0].run(knldg, entity_commands, registry);
         match status {
             BehaviorStatus::Success => {
-                behavior_vec.remove(0);
+                bhvs.remove(0);
             }
             BehaviorStatus::Failure => {
-                behavior_vec.remove(0);
+                bhvs.remove(0);
             }
             _ => {}
         }
-    });
+    }
 }
 
 pub fn movement(registry: &mut ComponentRegistry) {
