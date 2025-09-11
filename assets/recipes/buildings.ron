@@ -1,0 +1,15 @@
+[
+  (
+    id: "house/basic_v1",
+    product: (kind: building, id: "house_basic", qty: 1),
+    ingredients: [
+      (kind: item, id: "wood_log", qty: 12),
+      (kind: item, id: "stone_block", qty: 8),
+    ],
+    tools: ["hammer"],
+    time_ms: 120_000,
+    tags: ["starter"],
+    flags: 0,
+    // optional: building-specific extras you may add later (footprint, phases, etc.)
+  ),
+]

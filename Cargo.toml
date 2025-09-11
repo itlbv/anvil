@@ -19,3 +19,5 @@ blake3 = "1.8.2"
 serde = { version = "1.0.219", features = ["derive"] }
 bincode = { version = "2.0.1", features = ["serde"] }
 anyhow = "1.0.99"
+thiserror = "2.0.16"
+ron = "0.11.0"

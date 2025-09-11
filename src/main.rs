@@ -1,3 +1,4 @@
+mod behavior;
 mod behaviors;
 mod btree;
 mod command_bus;
@@ -7,6 +8,7 @@ mod entity_serde;
 mod input_controller;
 mod map;
 mod recipes;
+mod recipes_old;
 mod rng;
 mod sim_loop;
 mod systems;
@@ -23,7 +25,7 @@ use crate::entity_commands::EntityCommand;
 use crate::entity_commands::{process_commands, resolve_commands};
 use crate::input_controller::InputController;
 use crate::map::Map;
-use crate::recipes::Recipe;
+use crate::recipes_old::Recipe;
 use crate::rng::{rng_for_tick, RngRun};
 use crate::systems::{hunger, movement, render_frame, run_behaviors};
 use crate::window::Window;
@@ -272,6 +274,9 @@ fn main() -> Result<(), String> {
         }
         Mode::Normal => {}
     }
+
+    let recipes = recipes::RecipeDb::load_from_assets(std::path::Path::new("assets/recipes"))
+        .expect("can't load recipes from assets");
 
     // SDL2 rendering and input init
     let sdl_context = sdl2::init()?;

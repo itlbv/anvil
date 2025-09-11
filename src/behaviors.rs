@@ -3,7 +3,7 @@ use crate::btree::{BehaviorStatus, BehaviorTreeNode, DoUntil, Sequence};
 use crate::components::StateType::{Idle, Move};
 use crate::components::{Food, Movement, Position, State, Stone, Wood};
 use crate::entity_commands::{CommandType, EntityCommand};
-use crate::{entity_commands, recipes, EntityWithType, Knowledge};
+use crate::{entity_commands, recipes_old, EntityWithType, Knowledge};
 use hecs::{Component, Entity, World as ComponentRegistry};
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -91,7 +91,7 @@ impl BehaviorTreeNode for ChooseRecipe {
         _: &mut Vec<EntityCommand>,
         _: &mut ComponentRegistry,
     ) -> BehaviorStatus {
-        knowledge.recipe = Option::from(recipes::house());
+        knowledge.recipe = Option::from(recipes_old::house());
         Success
     }
 }
