@@ -1,14 +1,12 @@
 use crate::components::{Stone, Wood};
 use std::any::TypeId;
-use std::collections::HashMap;
 
 pub struct Recipe {
-    pub(crate) ingredients: HashMap<TypeId, usize>,
+    pub(crate) ingredients: Vec<(TypeId, usize)>,
 }
 
 pub fn house() -> Recipe {
-    let mut ingredients = HashMap::new();
-    ingredients.insert(TypeId::of::<Wood>(), 1);
-    ingredients.insert(TypeId::of::<Stone>(), 1);
-    Recipe { ingredients }
+    Recipe {
+        ingredients: vec![(TypeId::of::<Wood>(), 1), (TypeId::of::<Stone>(), 1)],
+    }
 }
