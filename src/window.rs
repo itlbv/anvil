@@ -5,8 +5,42 @@ use sdl2::render::BlendMode::Blend;
 use sdl2::render::WindowCanvas;
 use sdl2::Sdl;
 
+pub enum PaletteEntry {
+    Rect {
+        w: i32,
+        h: i32,
+        color: (u8, u8, u8, u8),
+    },
+}
+
+fn init_palette_entries() -> Vec<PaletteEntry> {
+    vec![
+        PaletteEntry::Rect {
+            w: 1,
+            h: 1,
+            color: (0, 0, 0, 0),
+        }, // 0 - default gray
+    ]
+}
+
+struct ShapePalette {
+    entries: Vec<PaletteEntry>,
+}
+
+impl ShapePalette {
+    fn new() -> Self {
+        Self {
+            entries: init_palette_entries(),
+        }
+    }
+}
+
 pub struct Window {
     sdl_canvas: WindowCanvas,
+    camera_pos: (f32, f32),
+    camera_zoom: usize,
+    camera_dirty: bool,
+    shape_palette: ShapePalette,
 }
 
 impl Window {
@@ -27,7 +61,21 @@ impl Window {
             .unwrap();
         sdl_canvas.set_blend_mode(Blend);
 
-        Self { sdl_canvas }
+        Self {
+            sdl_canvas,
+            camera_pos: (0., 0.),
+            camera_zoom: 50,
+            camera_dirty: true,
+            shape_palette: ShapePalette::new(),
+        }
+    }
+
+    pub fn set_camera(&mut self, pos: (f32, f32), zoom: usize) {
+        if self.camera_pos != pos || self.camera_zoom != zoom {
+            self.camera_pos = pos;
+            self.camera_zoom = zoom;
+            self.camera_dirty = true;
+        }
     }
 
     pub fn start_frame(&mut self) {
@@ -37,6 +85,11 @@ impl Window {
 
     pub fn present_frame(&mut self) {
         self.sdl_canvas.present();
+    }
+
+    pub fn draw_map_tile(&mut self, tile_pos: (u32, u32), shape_id: u16) {
+        // let shape = self.shape_palette.entries[shape_id];
+        // self.draw_rect(tile_pos.0 as f32, tile_pos.1 as f32, shape, 1., self.shape_palette.entries[shape_id])
     }
 
     pub fn draw_rect(
@@ -57,7 +110,7 @@ impl Window {
 
         self.sdl_canvas
             .fill_rect(Rect::new(x, y, w as u32, h as u32))
-            .expect("Error drawing rectangle.");
+            .expect("Error drawing rectangle with SDL Canvas.");
     }
 
     pub fn draw_line(&mut self, start: (f32, f32), end: (f32, f32), color: (u8, u8, u8, u8)) {
@@ -71,7 +124,7 @@ impl Window {
 
         self.sdl_canvas
             .draw_line(Point::new(start_x, start_y), Point::new(end_x, end_y))
-            .expect("TODO: panic message");
+            .expect("error drawing line with SDL Canvas");
     }
 
     pub fn draw_dot(&mut self, x_world: f32, y_world: f32, color: (u8, u8, u8, u8)) {

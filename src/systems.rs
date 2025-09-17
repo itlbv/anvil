@@ -110,6 +110,8 @@ pub fn render_frame(
 fn render_map(window: &mut Window, properties: &Properties, map: &Map) {
     for map_y in 0..map.height {
         for map_x in 0..map.width {
+            let tile = map.tile_at_pos(map_x, map_y);
+            // window.draw_map_tile((map_x, map_y), tile.visual.shape_id);
             window.draw_rect(map_x as f32, map_y as f32, 1., 1., (100, 100, 100, 100))
         }
     }
